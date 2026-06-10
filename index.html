@@ -747,7 +747,17 @@ function stroke(x1,y1,x2,y2){
   ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
   ctx.beginPath(); ctx.arc(x2,y2,rad,0,Math.PI*2); ctx.fill();
 }
-function setTool(tl){ state.tool=tl; document.getElementById('brushBtn').classList.toggle('active',tl==='brush'); document.getElementById('eraserBtn').classList.toggle('active',tl==='eraser'); }
+function setTool(tl){
+  state.tool=tl;
+  document.getElementById('brushBtn').classList.toggle('active',tl==='brush');
+  document.getElementById('eraserBtn').classList.toggle('active',tl==='eraser');
+  // 브러시/지우개를 고르면 이동(손) 모드를 자동 해제 → 바로 그릴 수 있게
+  if(state.panMode){
+    state.panMode=false; state.panning=false;
+    const p=document.getElementById('ccPan'); if(p) p.classList.remove('active');
+    document.getElementById('stage').classList.remove('pan-mode','panning');
+  }
+}
 function onBrushSize(v){ state.brushSize=parseInt(v); document.getElementById('brushSizeVal').textContent=v+' px'; }
 
 function pushHistory(){
