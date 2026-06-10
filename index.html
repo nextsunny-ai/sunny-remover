@@ -238,6 +238,33 @@ input[type=range]::-webkit-slider-thumb{
 .toast.show{opacity:1;}
 input[type=file]{display:none;}
 
+/* 캔버스 위 컨트롤 바 (줌·팬·되돌리기) */
+.canvas-controls{
+  position:absolute;bottom:14px;left:50%;transform:translateX(-50%);
+  display:flex;align-items:center;gap:2px;
+  background:var(--surface);border:1px solid var(--line);
+  border-radius:999px;padding:5px;box-shadow:var(--sh-2);
+  z-index:20;user-select:none;
+}
+.canvas-controls.hidden{display:none;}
+.cc-btn{
+  width:34px;height:34px;border-radius:50%;border:none;background:transparent;
+  color:var(--t-1);font-size:15px;cursor:pointer;
+  display:inline-flex;align-items:center;justify-content:center;transition:var(--tr);
+}
+.cc-btn:hover:not(:disabled){background:var(--surface-2);color:var(--t-0);}
+.cc-btn.active{background:var(--acc-soft);color:var(--acc);}
+.cc-btn:disabled{opacity:.32;cursor:default;}
+.cc-sep{width:1px;height:20px;background:var(--line);margin:0 3px;}
+.cc-zoom{font-size:11px;font-weight:600;color:var(--t-1);min-width:42px;text-align:center;font-variant-numeric:tabular-nums;}
+#canvasWrap{transform-origin:center center;}
+.stage.pan-mode #maskCanvas{cursor:grab;}
+.stage.panning #maskCanvas{cursor:grabbing;}
+@media (max-width:768px){
+  .canvas-controls{ bottom:10px; padding:4px; }
+  .cc-btn{ width:38px;height:38px;font-size:16px; }
+}
+
 /* ───── 모바일 반응형 ───── */
 @media (max-width:768px){
   body{ overflow:auto; }
@@ -340,6 +367,18 @@ input[type=file]{display:none;}
         <canvas id="imgCanvas"></canvas>
         <canvas id="maskCanvas"></canvas>
       </div>
+      <div class="canvas-controls hidden" id="canvasControls">
+        <button class="cc-btn" id="ccUndo" onclick="undo()" title="Undo">↶</button>
+        <button class="cc-btn" id="ccRedo" onclick="redo()" title="Redo">↷</button>
+        <div class="cc-sep"></div>
+        <button class="cc-btn" onclick="zoomBy(1/1.3)" title="Zoom out">−</button>
+        <span class="cc-zoom" id="ccZoom">100%</span>
+        <button class="cc-btn" onclick="zoomBy(1.3)" title="Zoom in">+</button>
+        <button class="cc-btn" onclick="zoomFit()" title="Fit">⊡</button>
+        <div class="cc-sep"></div>
+        <button class="cc-btn" id="ccPan" onclick="togglePan()" title="Pan">✋</button>
+        <button class="cc-btn" id="ccRestore" onclick="restoreOriginal()" title="Restore original" style="color:var(--danger)">⟲</button>
+      </div>
     </section>
 
   </div>
@@ -421,6 +460,8 @@ const I18N = {
     installIOS:'공유 버튼 → "홈 화면에 추가"를 누르면 앱으로 설치됩니다',
     installAndroid:'브라우저 메뉴에서 "앱 설치"를 선택하세요',
     secUnit:'초',
+    restored:'원본으로 되돌렸습니다', panOn:'이동 모드 — 드래그해서 그림을 옮기세요', panOff:'그리기 모드로 돌아왔습니다',
+    ttUndo:'되돌리기', ttRedo:'다시', ttZoomOut:'축소', ttZoomIn:'확대', ttFit:'화면에 맞춤', ttPan:'이동(손)', ttRestore:'원본으로 되돌리기',
   },
   en:{
     brandSub:'Runs in your browser · No upload',
@@ -452,6 +493,8 @@ const I18N = {
     installIOS:'Tap Share → "Add to Home Screen" to install the app',
     installAndroid:'Choose "Install app" from your browser menu',
     secUnit:'s',
+    restored:'Restored to the original', panOn:'Pan mode — drag to move the image', panOff:'Back to drawing mode',
+    ttUndo:'Undo', ttRedo:'Redo', ttZoomOut:'Zoom out', ttZoomIn:'Zoom in', ttFit:'Fit to screen', ttPan:'Pan (hand)', ttRestore:'Restore original',
   }
 };
 let LANG = localStorage.getItem('sr_lang') || (navigator.language && navigator.language.toLowerCase().startsWith('ko') ? 'ko' : 'en');
@@ -461,6 +504,9 @@ function applyLang(lang){
   document.documentElement.lang = lang;
   document.querySelectorAll('[data-i18n]').forEach(el=>{ el.textContent = t(el.dataset.i18n); });
   document.getElementById('langBtn').textContent = (lang==='ko') ? 'EN' : '한국어';
+  // 캔버스 컨트롤 툴팁
+  const ttMap={ccUndo:'ttUndo',ccRedo:'ttRedo',ccPan:'ttPan',ccRestore:'ttRestore'};
+  for(const id in ttMap){ const el=document.getElementById(id); if(el) el.title=t(ttMap[id]); }
   // 동적 텍스트 갱신
   refreshEngineLabel();
   refreshDynamic();
@@ -493,6 +539,10 @@ const state = {
   history:[], hpos:-1,
   session:null, engineReady:false, engineProvider:null, engineFailed:false,
   startTime:0, lastStatusKey:null,
+  // 줌·팬
+  zoom:1, panX:0, panY:0, panMode:false, panning:false, panSX:0, panSY:0,
+  pinching:false, pinchD:0, pinchM:null, pinchZ:1, pinchPX:0, pinchPY:0,
+  originalURL:null,
 };
 
 // ──────────────────────────────────────────────
@@ -532,6 +582,7 @@ function loadImageFile(file){
   state.fileName = file.name;
   const url = URL.createObjectURL(file);
   state.origURL = url;
+  state.originalURL = url;
   const img = new Image();
   img.onload = ()=>{
     state.img=img; state.imgW=img.naturalWidth; state.imgH=img.naturalHeight;
@@ -578,18 +629,107 @@ function setupCanvas(img){
   fitCanvas();
   state.history=[]; state.hpos=-1; pushHistory();
   attachDraw();
+  // 줌·팬 초기화 + 컨트롤 표시
+  state.zoom=1; state.panX=0; state.panY=0; state.panMode=false;
+  document.getElementById('ccPan').classList.remove('active');
+  document.getElementById('stage').classList.remove('pan-mode','panning');
+  applyView();
+  document.getElementById('canvasControls').classList.remove('hidden');
+  updateUndoButtons();
 }
-window.addEventListener('resize',()=>{ if(state.img) fitCanvas(); });
+window.addEventListener('resize',()=>{ if(state.img){ fitCanvas(); applyView(); } });
+
+// ──────────────────────────────────────────────
+//  줌 · 팬 · 핀치
+// ──────────────────────────────────────────────
+function applyView(){
+  const wrap=document.getElementById('canvasWrap');
+  wrap.style.transform=`translate(${state.panX}px,${state.panY}px) scale(${state.zoom})`;
+  const z=document.getElementById('ccZoom'); if(z) z.textContent=Math.round(state.zoom*100)+'%';
+}
+function zoomBy(f){
+  if(!state.img) return;
+  state.zoom=Math.max(1,Math.min(8,state.zoom*f));
+  if(state.zoom===1){ state.panX=0; state.panY=0; }
+  applyView();
+}
+function zoomFit(){ state.zoom=1; state.panX=0; state.panY=0; applyView(); }
+function togglePan(){
+  if(!state.img) return;
+  state.panMode=!state.panMode;
+  document.getElementById('ccPan').classList.toggle('active',state.panMode);
+  document.getElementById('stage').classList.toggle('pan-mode',state.panMode);
+  toast(state.panMode?t('panOn'):t('panOff'));
+}
+function startPan(ev){ state.panning=true; state.panSX=ev.clientX-state.panX; state.panSY=ev.clientY-state.panY; document.getElementById('stage').classList.add('panning'); }
+function movePan(ev){ if(!state.panning)return; state.panX=ev.clientX-state.panSX; state.panY=ev.clientY-state.panSY; applyView(); }
+function endPan(){ if(!state.panning)return; state.panning=false; document.getElementById('stage').classList.remove('panning'); }
+
+function pinchDist(ts){ const a=ts[0],b=ts[1]; return Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY); }
+function pinchMid(ts){ const a=ts[0],b=ts[1]; return {x:(a.clientX+b.clientX)/2,y:(a.clientY+b.clientY)/2}; }
+function startPinch(e){ state.pinching=true; state.pinchD=pinchDist(e.touches)||1; state.pinchM=pinchMid(e.touches); state.pinchZ=state.zoom; state.pinchPX=state.panX; state.pinchPY=state.panY; }
+function movePinch(e){
+  if(!state.pinching)return;
+  const d=pinchDist(e.touches), m=pinchMid(e.touches);
+  state.zoom=Math.max(1,Math.min(8,state.pinchZ*(d/state.pinchD)));
+  state.panX=state.pinchPX+(m.x-state.pinchM.x);
+  state.panY=state.pinchPY+(m.y-state.pinchM.y);
+  if(state.zoom===1){ state.panX=0; state.panY=0; }
+  applyView();
+}
+
+// 원본으로 되돌리기
+function restoreOriginal(){
+  if(!state.originalURL){ return; }
+  const im=new Image();
+  im.onload=()=>{
+    const c=document.getElementById('imgCanvas');
+    c.getContext('2d').drawImage(im,0,0,c.width,c.height);
+    state.origURL=state.originalURL;
+    clearMask();
+    zoomFit();
+    toast(t('restored'));
+  };
+  im.src=state.originalURL;
+}
+
+function updateUndoButtons(){
+  const u=document.getElementById('ccUndo'), r=document.getElementById('ccRedo');
+  if(u) u.disabled = state.hpos<=0;
+  if(r) r.disabled = state.hpos>=state.history.length-1;
+}
+
+// 휠 줌 (데스크탑) — 중앙 기준
+document.getElementById('stage').addEventListener('wheel',e=>{
+  if(!state.img) return;
+  e.preventDefault();
+  zoomBy(e.deltaY<0 ? 1.12 : 1/1.12);
+},{passive:false});
 
 // ──────────────────────────────────────────────
 //  그리기
 // ──────────────────────────────────────────────
 function attachDraw(){
   const cv=document.getElementById('maskCanvas');
-  cv.onmousedown=drawStart; cv.onmousemove=drawMove; cv.onmouseup=drawEnd; cv.onmouseleave=drawEnd;
-  cv.ontouchstart=e=>{e.preventDefault();const t=e.touches[0];drawStart({clientX:t.clientX,clientY:t.clientY});};
-  cv.ontouchmove=e=>{e.preventDefault();const t=e.touches[0];drawMove({clientX:t.clientX,clientY:t.clientY});};
-  cv.ontouchend=e=>{e.preventDefault();drawEnd();};
+  cv.onmousedown=e=>{ if(state.panMode) startPan(e); else drawStart(e); };
+  cv.onmousemove=e=>{ if(state.panMode) movePan(e); else drawMove(e); };
+  cv.onmouseup=e=>{ if(state.panMode) endPan(); else drawEnd(); };
+  cv.onmouseleave=e=>{ if(state.panMode) endPan(); else drawEnd(); };
+  cv.ontouchstart=e=>{
+    if(e.touches.length>=2){ e.preventDefault(); startPinch(e); return; }
+    e.preventDefault(); const t=e.touches[0];
+    if(state.panMode) startPan({clientX:t.clientX,clientY:t.clientY}); else drawStart({clientX:t.clientX,clientY:t.clientY});
+  };
+  cv.ontouchmove=e=>{
+    if(state.pinching || e.touches.length>=2){ e.preventDefault(); movePinch(e); return; }
+    e.preventDefault(); const t=e.touches[0];
+    if(state.panMode) movePan({clientX:t.clientX,clientY:t.clientY}); else drawMove({clientX:t.clientX,clientY:t.clientY});
+  };
+  cv.ontouchend=e=>{
+    e.preventDefault();
+    if(state.pinching && e.touches.length<2) state.pinching=false;
+    if(state.panMode) endPan(); else drawEnd();
+  };
 }
 function canvasXY(ev){
   const cv=document.getElementById('maskCanvas'), r=cv.getBoundingClientRect();
@@ -615,6 +755,7 @@ function pushHistory(){
   state.history=state.history.slice(0,state.hpos+1);
   if(state.history.length>25) state.history.shift();
   state.history.push(cv.toDataURL()); state.hpos=state.history.length-1;
+  updateUndoButtons();
 }
 function restoreHistory(i){
   if(i<0||i>=state.history.length) return;
@@ -623,8 +764,8 @@ function restoreHistory(i){
   im.onload=()=>{ ctx.globalCompositeOperation='source-over'; ctx.clearRect(0,0,cv.width,cv.height); ctx.drawImage(im,0,0); };
   im.src=state.history[i];
 }
-function undo(){ if(state.hpos>0){ state.hpos--; restoreHistory(state.hpos);} }
-function redo(){ if(state.hpos<state.history.length-1){ state.hpos++; restoreHistory(state.hpos);} }
+function undo(){ if(state.hpos>0){ state.hpos--; restoreHistory(state.hpos); updateUndoButtons(); } }
+function redo(){ if(state.hpos<state.history.length-1){ state.hpos++; restoreHistory(state.hpos); updateUndoButtons(); } }
 function clearMask(){
   if(!state.imgW) return;
   const cv=document.getElementById('maskCanvas'), ctx=cv.getContext('2d');
