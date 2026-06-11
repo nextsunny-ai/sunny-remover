@@ -313,7 +313,7 @@ input[type=file]{display:none;}
     <div class="head-actions">
       <button class="lang-btn" id="langBtn" onclick="toggleLang()">EN</button>
       <button class="install-btn" id="installBtn" style="display:none;" data-i18n="installBtn" onclick="doInstall()">⬇ Install</button>
-      <div class="engine-pill">
+      <div class="engine-pill" id="enginePill">
         <span class="engine-dot" id="engineDot"></span>
         <span id="engineLabel">Loading…</span>
       </div>
@@ -570,6 +570,9 @@ function setEngine(cls,label){
   const dot=document.getElementById('engineDot');
   dot.className='engine-dot '+(cls==='ready'?'ready':cls==='loading'?'loading':cls==='err'?'err':'');
   document.getElementById('engineLabel').textContent=label;
+  // 준비 완료되면 상태 표시를 숨김 (로딩 중·실패일 때만 표시)
+  const pill=document.getElementById('enginePill');
+  if(pill) pill.style.display = (cls==='ready') ? 'none' : 'flex';
 }
 
 // ──────────────────────────────────────────────
@@ -785,80 +788,103 @@ function clearMask(){
 // ──────────────────────────────────────────────
 //  자동 감지 — 우측 하단 ROI 밝은 워터마크
 // ──────────────────────────────────────────────
+// 워터마크는 도구마다 위치가 달라서, 네 모서리 + 하단 중앙을 모두 비율로 스캔한다.
+// (좌표 고정 X — 이미지 크기에 비례)
+const WM_REGIONS = [
+  [0.84,0.84,1.00,1.00], // 우하단 (가장 흔함)
+];
+
 function autoDetect(){
   if(!state.img){ toast(t('pickFirst')); return; }
   const W=state.imgW, H=state.imgH;
   const ictx=document.getElementById('imgCanvas').getContext('2d');
-  // 우하단 코너 ROI (가로·세로 16%) — 화면 등 중앙 물체를 배제
-  const rx=Math.floor(W*0.84), ry=Math.floor(H*0.84);
-  const rw=W-rx, rh=H-ry, N=rw*rh;
+  const mctx=document.getElementById('maskCanvas').getContext('2d');
+  mctx.globalCompositeOperation='source-over'; mctx.fillStyle='rgba(59,108,245,.5)';
+  let found=0;
+  for(const r of WM_REGIONS){
+    const wm=detectWatermarkInRegion(ictx,W,H,r[0],r[1],r[2],r[3]);
+    if(wm){ mctx.fillRect(wm.x,wm.y,wm.w,wm.h); found++; }
+  }
+  if(found){ pushHistory(); toast(t('autoDone')); }
+  else { toast(t('noAuto')); }
+}
+
+// 한 영역에서 워터마크 후보 1개를 찾는다.
+// 핵심: 워터마크 = "주변보다 도드라지게 밝은, 적당히 작은, 고립된" 영역.
+//       폰 흰 화면·하늘처럼 주변까지 다 밝은 큰 영역은 고립도가 낮아 제외된다.
+function detectWatermarkInRegion(ictx,W,H,fx0,fy0,fx1,fy1){
+  const rx=Math.floor(W*fx0), ry=Math.floor(H*fy0);
+  const rw=Math.floor(W*fx1)-rx, rh=Math.floor(H*fy1)-ry;
+  if(rw<10||rh<10) return null;
+  const N=rw*rh;
   const d=ictx.getImageData(rx,ry,rw,rh).data;
 
-  // 1) 적응형 임계 + 가장 밝은(흰) 픽셀 위치 = 워터마크 코어 후보
-  let maxb=0, maxIdx=0;
-  for(let i=0;i<N;i++){ const br=(d[i*4]+d[i*4+1]+d[i*4+2])/3; if(br>maxb){ maxb=br; maxIdx=i; } }
-  if(maxb<120){ toast(t('noAuto')); return; }
-  const thr=Math.max(112, maxb*0.62);
+  // 적응형 임계 — 영역 내 최대 밝기 기준
+  let maxb=0;
+  for(let i=0;i<N;i++){ const br=(d[i*4]+d[i*4+1]+d[i*4+2])/3; if(br>maxb) maxb=br; }
+  if(maxb<120) return null; // 충분히 밝은 게 없으면 워터마크 후보 없음
+  const thr=Math.max(118, maxb*0.60);
 
-  // 2) 밝고 채도 낮은(흰색 계열) 후보 픽셀
-  const hit=new Uint8Array(N); let count=0;
+  // 밝고 채도 낮은(흰색 계열) 후보 — 워터마크(sparkle)는 거의 흰색
+  const hit=new Uint8Array(N);
   for(let i=0;i<N;i++){
     const R=d[i*4],G=d[i*4+1],B=d[i*4+2];
     const mx=Math.max(R,G,B),mn=Math.min(R,G,B),br=(R+G+B)/3;
-    if(br>thr && (mx-mn)<65){ hit[i]=1; count++; }
+    if(br>thr && (mx-mn)<70) hit[i]=1;
   }
-  if(count<10){ toast(t('noAuto')); return; }
 
-  // 3) 연결 성분 라벨링 (4-이웃)
-  const label=new Int32Array(N);
-  const comps=[]; const stack=[]; let cur=0;
+  // 연결 성분 (면적·bbox·코어 밝기)
+  const label=new Int32Array(N); const comps=[]; const st=[]; let cur=0;
   for(let s=0;s<N;s++){
     if(!hit[s]||label[s]) continue;
-    cur++; let area=0,sx=0,sy=0;
-    stack.length=0; stack.push(s); label[s]=cur;
-    while(stack.length){
-      const p=stack.pop(), px=p%rw, py=(p/rw)|0;
-      area++; sx+=px; sy+=py;
-      if(px>0   &&hit[p-1] &&!label[p-1]){ label[p-1]=cur; stack.push(p-1); }
-      if(px<rw-1&&hit[p+1] &&!label[p+1]){ label[p+1]=cur; stack.push(p+1); }
-      if(py>0   &&hit[p-rw]&&!label[p-rw]){ label[p-rw]=cur; stack.push(p-rw); }
-      if(py<rh-1&&hit[p+rw]&&!label[p+rw]){ label[p+rw]=cur; stack.push(p+rw); }
+    cur++; let a=0,mnx=rw,mny=rh,mxx=0,mxy=0,mb=0;
+    st.length=0; st.push(s); label[s]=cur;
+    while(st.length){
+      const p=st.pop(), px=p%rw, py=(p/rw)|0;
+      a++; if(px<mnx)mnx=px; if(px>mxx)mxx=px; if(py<mny)mny=py; if(py>mxy)mxy=py;
+      const br=(d[p*4]+d[p*4+1]+d[p*4+2])/3; if(br>mb)mb=br;
+      if(px>0   &&hit[p-1] &&!label[p-1]){ label[p-1]=cur; st.push(p-1); }
+      if(px<rw-1&&hit[p+1] &&!label[p+1]){ label[p+1]=cur; st.push(p+1); }
+      if(py>0   &&hit[p-rw]&&!label[p-rw]){ label[p-rw]=cur; st.push(p-rw); }
+      if(py<rh-1&&hit[p+rw]&&!label[p+rw]){ label[p+rw]=cur; st.push(p+rw); }
     }
-    comps.push({label:cur,area,cx:sx/area,cy:sy/area});
+    comps.push({a,mnx,mny,mxx,mxy,mb,bw:mxx-mnx+1,bh:mxy-mny+1});
   }
 
-  // 4) 워터마크 = 가장 흰 코어를 가진 덩어리 (sparkle은 거의 순백). 큰 옷·배경 덩어리는 제외
-  //    base = 최대 밝기 픽셀이 속한 성분. 단 그게 비정상적으로 크면(옷이 가장 밝은 경우) 면적 기반 fallback.
-  const baseLabel=label[maxIdx];
-  let base=comps.find(c=>c.label===baseLabel);
-  if(!base || base.area>N*0.15){
-    const cc=comps.filter(c=> c.area>=6 && c.area<=N*0.06).sort((a,b)=>b.area-a.area);
-    base=cc[0];
-  }
-  if(!base){ toast(t('autoAmbiguous')); return; }
-  // 인근 조각은 작은 것만(큰 옷 제외), 범위도 좁게 — base 주변 sparkle 가지만 합침
-  const cand=comps.filter(c=> c.area>=6 && c.area<=N*0.06);
-  const chosen=new Set([base.label]);
-  const rad=Math.min(rw,rh)*0.16;
-  for(const c of cand){ if(Math.hypot(c.cx-base.cx, c.cy-base.cy)<rad) chosen.add(c.label); }
+  // 크기 필터: 너무 작은 노이즈·너무 큰 배경(흰 화면/하늘/옷) 제외. 워터마크는 작은 마크다.
+  const cand=comps.filter(c=> c.a>=Math.max(20,N*0.002) && c.a<=N*0.035 && c.bw<rw*0.7 && c.bh<rh*0.7);
+  if(!cand.length) return null;
 
-  // 5) 선택 성분의 bbox + 패딩
-  let bx0=rw,by0=rh,bx1=0,by1=0,have=false;
-  for(let i=0;i<N;i++){
-    if(chosen.has(label[i])){ have=true; const x=i%rw,y=(i/rw)|0;
-      if(x<bx0)bx0=x; if(x>bx1)bx1=x; if(y<by0)by0=y; if(y>by1)by1=y; }
+  // 고립도 = 성분 코어 밝기 − 주변 링 평균 밝기. 워터마크는 주변과 대비가 큼(고립).
+  // 흰 화면·하늘처럼 주변까지 밝은 영역은 고립도가 낮아 걸러진다.
+  for(const c of cand){
+    const ex=Math.round(c.bw*0.6)+4, ey=Math.round(c.bh*0.6)+4;
+    const ox0=Math.max(0,c.mnx-ex),oy0=Math.max(0,c.mny-ey),ox1=Math.min(rw-1,c.mxx+ex),oy1=Math.min(rh-1,c.mxy+ey);
+    let sum=0,cnt=0;
+    for(let y=oy0;y<=oy1;y++)for(let x=ox0;x<=ox1;x++){
+      if(x>=c.mnx&&x<=c.mxx&&y>=c.mny&&y<=c.mxy) continue; // 바깥 링만
+      const i=y*rw+x; sum+=(d[i*4]+d[i*4+1]+d[i*4+2])/3; cnt++;
+    }
+    c.iso = c.mb - (cnt?sum/cnt:255);
   }
-  if(!have){ toast(t('autoAmbiguous')); return; }
-  const padX=Math.round(rw*0.05)+6, padY=Math.round(rh*0.05)+6;
+  // 고립도 충분한 것 중 가장 흰(코어 밝기 최대) = 워터마크. 흰 화면(고립도 낮음)은 탈락.
+  const good=cand.filter(c=> c.iso>=26);
+  if(!good.length) return null;
+  good.sort((a,b)=>b.mb-a.mb);
+  const best=good[0];
+
+  // 인근 작은 조각(별 가지)을 best 주변에서 합쳐 bbox 확장
+  const cx=(best.mnx+best.mxx)/2, cy=(best.mny+best.mxy)/2, rad=Math.min(rw,rh)*0.16;
+  let bx0=best.mnx,by0=best.mny,bx1=best.mxx,by1=best.mxy;
+  for(const c of cand){
+    const ccx=(c.mnx+c.mxx)/2, ccy=(c.mny+c.mxy)/2;
+    if(Math.hypot(ccx-cx,ccy-cy)<rad){ bx0=Math.min(bx0,c.mnx);by0=Math.min(by0,c.mny);bx1=Math.max(bx1,c.mxx);by1=Math.max(by1,c.mxy); }
+  }
+  // 패딩 (반투명 외곽 흡수)
+  const padX=Math.round((bx1-bx0)*0.30)+5, padY=Math.round((by1-by0)*0.30)+5;
   bx0=Math.max(0,bx0-padX); by0=Math.max(0,by0-padY);
   bx1=Math.min(rw-1,bx1+padX); by1=Math.min(rh-1,by1+padY);
-
-  // 6) 마스크 캔버스에 사각형으로 반영
-  const mctx=document.getElementById('maskCanvas').getContext('2d');
-  mctx.globalCompositeOperation='source-over'; mctx.fillStyle='rgba(59,108,245,.5)';
-  mctx.fillRect(rx+bx0, ry+by0, bx1-bx0+1, by1-by0+1);
-  pushHistory();
-  toast(t('autoDone'));
+  return { x:rx+bx0, y:ry+by0, w:bx1-bx0+1, h:by1-by0+1 };
 }
 
 // ──────────────────────────────────────────────
