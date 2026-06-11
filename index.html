@@ -791,7 +791,7 @@ function clearMask(){
 // 워터마크는 도구마다 위치가 달라서, 네 모서리 + 하단 중앙을 모두 비율로 스캔한다.
 // (좌표 고정 X — 이미지 크기에 비례)
 const WM_REGIONS = [
-  [0.84,0.84,1.00,1.00], // 우하단 (가장 흔함)
+  [0.84,0.88,1.00,1.00], // 우하단 코너 (세로 위 경계 88% — 위쪽 빛·UI 배제, 가로는 여유)
 ];
 
 function autoDetect(){
@@ -851,8 +851,9 @@ function detectWatermarkInRegion(ictx,W,H,fx0,fy0,fx1,fy1){
     comps.push({a,mnx,mny,mxx,mxy,mb,bw:mxx-mnx+1,bh:mxy-mny+1});
   }
 
-  // 크기 필터: 너무 작은 노이즈·너무 큰 배경(흰 화면/하늘/옷) 제외. 워터마크는 작은 마크다.
-  const cand=comps.filter(c=> c.a>=Math.max(20,N*0.002) && c.a<=N*0.035 && c.bw<rw*0.7 && c.bh<rh*0.7);
+  // 크기 필터: 전체 이미지 크기 기준(ROI 크기에 종속되지 않게) — 워터마크는 작은 마크다.
+  const imgArea=W*H;
+  const cand=comps.filter(c=> c.a>=Math.max(20,imgArea*0.00003) && c.a<=imgArea*0.0018 && c.bw<rw*0.85 && c.bh<rh*0.85);
   if(!cand.length) return null;
 
   // 고립도 = 성분 코어 밝기 − 주변 링 평균 밝기. 워터마크는 주변과 대비가 큼(고립).
