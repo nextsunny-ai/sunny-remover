@@ -1,7 +1,7 @@
 // SUNNY REMOVER — Service Worker
 // 코드(HTML/JS/manifest)는 network-first → 업데이트가 바로 반영.
 // 무거운 자산(모델 .onnx · onnxruntime · 폰트 · 아이콘)은 cache-first → 두 번째부터 즉시·오프라인.
-const CACHE = 'sunny-remover-v2';
+const CACHE = 'sunny-remover-v3';
 const SHELL = ['./', './index.html', './manifest.webmanifest'];
 
 self.addEventListener('install', e => {
@@ -21,10 +21,11 @@ self.addEventListener('activate', e => {
 });
 
 function isHeavyAsset(url){
+  // 큰 모델·CDN 라이브러리·폰트만 cache-first. 아이콘(작은 png)은 network-first로 항상 최신.
   return url.includes('.onnx')
       || url.includes('onnxruntime-web')
       || url.includes('jsdelivr')          // ort + pretendard 폰트 CDN
-      || /\.(png|jpg|jpeg|webp|woff2?|ttf)(\?|$)/i.test(url);
+      || /\.(woff2?|ttf)(\?|$)/i.test(url);
 }
 
 self.addEventListener('fetch', e => {
