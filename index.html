@@ -794,9 +794,9 @@ function autoDetect(){
   const rw=W-rx, rh=H-ry, N=rw*rh;
   const d=ictx.getImageData(rx,ry,rw,rh).data;
 
-  // 1) 적응형 임계
-  let maxb=0;
-  for(let i=0;i<N;i++){ const br=(d[i*4]+d[i*4+1]+d[i*4+2])/3; if(br>maxb) maxb=br; }
+  // 1) 적응형 임계 + 가장 밝은(흰) 픽셀 위치 = 워터마크 코어 후보
+  let maxb=0, maxIdx=0;
+  for(let i=0;i<N;i++){ const br=(d[i*4]+d[i*4+1]+d[i*4+2])/3; if(br>maxb){ maxb=br; maxIdx=i; } }
   if(maxb<120){ toast(t('noAuto')); return; }
   const thr=Math.max(112, maxb*0.62);
 
@@ -827,13 +827,19 @@ function autoDetect(){
     comps.push({label:cur,area,cx:sx/area,cy:sy/area});
   }
 
-  // 4) 워터마크 = 코너 ROI에서 면적 최대 흰 덩어리 + 인근 조각
-  const cand=comps.filter(c=> c.area>=6 && c.area<=N*0.5);
-  if(!cand.length){ toast(t('autoAmbiguous')); return; }
-  cand.sort((a,b)=>b.area-a.area);
-  const base=cand[0];
+  // 4) 워터마크 = 가장 흰 코어를 가진 덩어리 (sparkle은 거의 순백). 큰 옷·배경 덩어리는 제외
+  //    base = 최대 밝기 픽셀이 속한 성분. 단 그게 비정상적으로 크면(옷이 가장 밝은 경우) 면적 기반 fallback.
+  const baseLabel=label[maxIdx];
+  let base=comps.find(c=>c.label===baseLabel);
+  if(!base || base.area>N*0.15){
+    const cc=comps.filter(c=> c.area>=6 && c.area<=N*0.06).sort((a,b)=>b.area-a.area);
+    base=cc[0];
+  }
+  if(!base){ toast(t('autoAmbiguous')); return; }
+  // 인근 조각은 작은 것만(큰 옷 제외), 범위도 좁게 — base 주변 sparkle 가지만 합침
+  const cand=comps.filter(c=> c.area>=6 && c.area<=N*0.06);
   const chosen=new Set([base.label]);
-  const rad=Math.min(rw,rh)*0.32;
+  const rad=Math.min(rw,rh)*0.16;
   for(const c of cand){ if(Math.hypot(c.cx-base.cx, c.cy-base.cy)<rad) chosen.add(c.label); }
 
   // 5) 선택 성분의 bbox + 패딩
