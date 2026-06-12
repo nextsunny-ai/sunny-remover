@@ -47,15 +47,38 @@ body{
   overflow:hidden;
 }
 button{font-family:inherit;}
-.app{display:grid;grid-template-rows:54px 1fr 40px;height:100vh;}
+.app{display:flex;flex-direction:column;height:100vh;}
 
 /* 헤더 */
 .header{
   display:flex;align-items:center;justify-content:space-between;
-  padding:0 22px;height:54px;
+  padding:0 22px;height:54px;flex:0 0 auto;
   background:var(--surface);
+  position:relative;
   border-bottom:1px solid var(--line);
 }
+
+/* 탭 바 */
+.tabbar{
+  position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+  display:flex;align-items:center;gap:6px;
+}
+/* 두 탭 모두 항상 '버튼'처럼 — 미선택=연한 버튼, 선택=진한 버튼(색만 강조) */
+.tab-btn{
+  padding:9px 18px;border-radius:999px;border:1px solid var(--line-2);
+  background:var(--surface);color:var(--t-1);font-size:14px;font-weight:600;
+  cursor:pointer;transition:var(--tr);display:inline-flex;align-items:center;gap:7px;
+  box-shadow:var(--sh-1);
+}
+.tab-btn:hover{background:var(--surface-2);color:var(--t-0);border-color:var(--line-3,var(--line-2));}
+.tab-btn.active{background:var(--acc-soft);border-color:var(--acc-line);color:var(--acc);box-shadow:none;}
+
+/* 탭 패널 — 각 패널이 자체 .main + .footer 보유 */
+.panel{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;}
+.panel.hidden{display:none;}
+
+/* 헤더 우측 액션: 탭별 엔진칩 전환 */
+.engine-pill.tab-hidden{display:none !important;}
 .brand{display:flex;align-items:center;gap:12px;}
 .brand-mark{width:30px;height:30px;border-radius:8px;box-shadow:var(--sh-1);}
 .brand-title{font-size:18px;font-weight:800;letter-spacing:-0.01em;}
@@ -89,7 +112,7 @@ button{font-family:inherit;}
 .install-btn:hover{background:var(--acc-hover);}
 
 /* 메인 */
-.main{display:grid;grid-template-columns:340px 1fr;gap:16px;padding:16px;overflow:hidden;}
+.main{display:grid;grid-template-columns:340px 1fr;gap:16px;padding:16px;overflow:hidden;flex:1 1 auto;min-height:0;}
 
 .sidebar{
   background:var(--surface);border:1px solid var(--line);
@@ -124,13 +147,50 @@ button{font-family:inherit;}
 .btn-ghost:hover{background:var(--surface-2);color:var(--t-0);}
 
 .tool-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;}
+/* 도구 버튼: 미선택도 또렷한 버튼 모양(테두리·배경·그림자), 선택 시 색 대비 강하게 */
 .tool-btn{
-  padding:13px 10px;background:var(--surface-2);border:1px solid var(--line);
-  color:var(--t-1);font-size:14.5px;font-weight:500;border-radius:var(--r-sm);
+  padding:13px 10px;background:var(--surface);border:1.5px solid var(--line-2);
+  color:var(--t-1);font-size:14.5px;font-weight:600;border-radius:var(--r-sm);
   cursor:pointer;transition:var(--tr);display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  box-shadow:var(--sh-1);
 }
-.tool-btn:hover{background:var(--surface-3);color:var(--t-0);}
-.tool-btn.active{background:var(--acc-soft);border-color:var(--acc-line);color:var(--acc);}
+.tool-btn:hover{background:var(--surface-2);border-color:var(--t-2);color:var(--t-0);}
+.tool-btn.active{
+  background:var(--acc);border-color:var(--acc);color:#fff;font-weight:700;
+  box-shadow:0 2px 8px rgba(59,108,245,.28);
+}
+/* 선택된 모드임을 한눈에 — 활성 도구 앞에 체크 배지(실행 버튼과 구분) */
+.tool-btn.active::before{
+  content:'✓';font-weight:800;font-size:12px;line-height:1;
+  display:inline-flex;align-items:center;justify-content:center;
+  width:15px;height:15px;border-radius:50%;
+  background:rgba(255,255,255,.9);color:var(--acc);margin-right:1px;flex:0 0 auto;
+}
+/* 분절 토글(인접/전체 = 모드 설정)은 체크 배지 제외 — 체크는 '선택된 도구'에만 */
+.tool-btn.seg.active::before{display:none;content:none;}
+.tool-btn.active:hover{background:var(--acc-hover);border-color:var(--acc-hover);color:#fff;}
+.tool-btn:disabled{opacity:.5;cursor:not-allowed;box-shadow:none;}
+
+/* Auto / Manual 모드 세그먼트 (양 탭 공통) */
+.mode-seg{
+  display:grid;grid-template-columns:1fr 1fr;gap:0;
+  background:var(--surface-2);border:1px solid var(--line-2);
+  border-radius:var(--r-md);padding:4px;
+}
+.mode-seg-btn{
+  padding:11px 10px;border:none;background:transparent;border-radius:var(--r-sm);
+  color:var(--t-1);font-size:14.5px;font-weight:700;cursor:pointer;transition:var(--tr);
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;
+}
+.mode-seg-btn:hover{color:var(--t-0);}
+.mode-seg-btn.active{background:var(--surface);color:var(--acc);box-shadow:var(--sh-1);}
+/* 모드별 도구 묶음 표시/숨김 */
+.mode-panel{display:flex;flex-direction:column;gap:11px;}
+.mode-panel.hidden{display:none;}
+/* Manual 안의 방법 구분 소제목 */
+.method-label{font-size:13px;font-weight:700;color:var(--t-2);letter-spacing:.02em;margin-top:2px;}
+/* 페더 슬라이더 행 */
+.feather-row{display:flex;flex-direction:column;gap:7px;}
 
 .row-label{font-size:14.5px;color:var(--t-1);display:flex;justify-content:space-between;align-items:center;}
 .slider-val{font-size:14.5px;color:var(--t-0);font-weight:600;font-variant-numeric:tabular-nums;}
@@ -144,16 +204,22 @@ input[type=range]::-webkit-slider-thumb{
 }
 .hint{font-size:13.5px;color:var(--t-2);line-height:1.6;}
 .file-meta{font-size:13px;color:var(--t-2);min-height:14px;}
+/* 슬라이더 양끝 의미 라벨 — "딱 이 색만 ←→ 비슷한 색까지 넓게" */
+.range-ends{display:flex;justify-content:space-between;font-size:11.5px;color:var(--t-2);margin-top:-2px;}
 
 /* 캔버스 */
 .stage{
-  background:
-    repeating-conic-gradient(var(--surface-3) 0% 25%, var(--surface-2) 0% 50%) 50%/22px 22px;
   border:1px solid var(--line);border-radius:var(--r-lg);
   position:relative;overflow:hidden;
-  display:flex;align-items:center;justify-content:center;
+  display:flex;flex-direction:column;
   box-shadow:var(--sh-1);
-  padding-bottom:66px; /* 하단 컨트롤바가 이미지를 가리지 않도록 여백 확보 */
+}
+/* 이미지가 보이는 영역 — 컨트롤바와 분리된 별도 칸이라 확대·이동해도 절대 안 가림 */
+.stage-view{
+  background:
+    repeating-conic-gradient(var(--surface-3) 0% 25%, var(--surface-2) 0% 50%) 50%/22px 22px;
+  position:relative;overflow:hidden;flex:1;min-height:0;
+  display:flex;align-items:center;justify-content:center;
 }
 .dropzone{
   position:absolute;inset:0;display:flex;flex-direction:column;
@@ -179,6 +245,7 @@ input[type=range]::-webkit-slider-thumb{
   border-top:1px solid var(--line);background:var(--surface);
   display:flex;align-items:center;gap:14px;padding:0 20px;
   font-size:14.5px;color:var(--t-1);
+  height:40px;flex:0 0 auto;
 }
 .fbar{flex:1;height:5px;border-radius:3px;background:var(--surface-3);overflow:hidden;position:relative;}
 .ffill{position:absolute;top:0;left:0;bottom:0;width:0%;background:var(--acc);transition:width .3s ease;}
@@ -239,13 +306,11 @@ input[type=range]::-webkit-slider-thumb{
 .toast.show{opacity:1;}
 input[type=file]{display:none;}
 
-/* 캔버스 위 컨트롤 바 (줌·팬·되돌리기) */
+/* 캔버스 아래 컨트롤 바 (줌·팬·되돌리기) — 이미지 영역 밖 전용 줄 */
 .canvas-controls{
-  position:absolute;bottom:14px;left:50%;transform:translateX(-50%);
-  display:flex;align-items:center;gap:2px;
-  background:var(--surface);border:1px solid var(--line);
-  border-radius:999px;padding:5px;box-shadow:var(--sh-2);
-  z-index:20;user-select:none;
+  flex:none;display:flex;align-items:center;justify-content:center;gap:2px;
+  background:var(--surface);border-top:1px solid var(--line);
+  padding:6px;user-select:none;
 }
 .canvas-controls.hidden{display:none;}
 .cc-btn{
@@ -256,20 +321,64 @@ input[type=file]{display:none;}
 .cc-btn:hover:not(:disabled){background:var(--surface-2);color:var(--t-0);}
 .cc-btn.active{background:var(--acc-soft);color:var(--acc);}
 .cc-btn:disabled{opacity:.32;cursor:default;}
+/* 리셋 — undo(↶)와 헷갈리지 않게 글자 라벨이 붙은 알약형 버튼 */
+.cc-btn.cc-reset{width:auto;border-radius:999px;padding:0 12px;gap:5px;font-size:12.5px;font-weight:600;white-space:nowrap;}
+.cc-btn.cc-reset:hover:not(:disabled){background:var(--danger-soft,#fdecec);}
+/* 자르기 — 글자 라벨 알약형(줌·팬 옆) */
+.cc-btn.cc-crop{width:auto;border-radius:999px;padding:0 12px;gap:5px;font-size:12.5px;font-weight:600;white-space:nowrap;}
+.cc-btn.cc-crop.active{background:var(--acc-soft);color:var(--acc);}
+/* 자르기 적용/취소 바 */
+.crop-bar{position:absolute;left:50%;bottom:64px;transform:translateX(-50%);display:none;align-items:center;gap:10px;
+  background:var(--surface);border:1px solid var(--line-2);border-radius:999px;box-shadow:0 6px 20px rgba(20,23,31,.16);
+  padding:7px 8px 7px 16px;z-index:20;font-size:13px;color:var(--t-1);white-space:nowrap;}
+.crop-bar.show{display:flex;}
+.crop-bar .crop-hint{color:var(--t-2);}
+.crop-bar button{padding:7px 14px;border-radius:999px;font-size:12.5px;font-weight:600;cursor:pointer;border:1px solid var(--line-2);background:var(--surface);color:var(--t-1);transition:var(--tr);}
+.crop-bar button:hover{background:var(--surface-2);}
+.crop-bar button.primary{background:var(--acc);border-color:var(--acc);color:#fff;}
+.crop-bar button.primary:hover{filter:brightness(.96);}
+/* 다운로드 옵션 체크박스 행 */
+.opt-row{display:flex;align-items:center;gap:7px;margin-top:7px;font-size:13px;color:var(--t-1);cursor:pointer;user-select:none;}
+.opt-row input{width:15px;height:15px;accent-color:var(--acc);cursor:pointer;}
+/* 확인 팝업(리셋 등) */
+.confirm-overlay{position:fixed;inset:0;background:rgba(20,23,31,.42);display:none;align-items:center;justify-content:center;z-index:100;padding:24px;}
+.confirm-overlay.show{display:flex;}
+.confirm-box{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md,14px);box-shadow:0 12px 40px rgba(20,23,31,.22);max-width:340px;width:100%;padding:22px 22px 18px;}
+.confirm-msg{font-size:15px;line-height:1.55;color:var(--t-0);margin-bottom:18px;}
+.confirm-actions{display:flex;gap:8px;justify-content:flex-end;}
+.confirm-actions button{padding:9px 18px;border-radius:var(--r-sm,9px);font-size:13.5px;font-weight:600;cursor:pointer;border:1px solid var(--line-2);background:var(--surface);color:var(--t-1);transition:var(--tr);}
+.confirm-actions button:hover{background:var(--surface-2);}
+.confirm-actions button.danger{background:var(--danger,#e5484d);border-color:var(--danger,#e5484d);color:#fff;}
+.confirm-actions button.danger:hover{filter:brightness(.95);}
+/* 새 버전 알림 배너 — 하단 가운데, 담백하게 */
+.update-banner{position:fixed;left:50%;bottom:18px;transform:translateX(-50%) translateY(20px);
+  display:none;align-items:center;gap:12px;z-index:90;
+  background:var(--surface);border:1px solid var(--line-2);border-radius:999px;
+  box-shadow:0 8px 28px rgba(20,23,31,.18);padding:9px 9px 9px 18px;
+  font-size:13.5px;color:var(--t-0);opacity:0;transition:opacity .25s,transform .25s;}
+.update-banner.show{display:flex;opacity:1;transform:translateX(-50%) translateY(0);}
+.update-banner button{padding:7px 15px;border-radius:999px;font-size:13px;font-weight:600;cursor:pointer;
+  border:1px solid var(--line-2);background:var(--surface);color:var(--t-1);transition:var(--tr);}
+.update-banner button:hover{background:var(--surface-2);}
+.update-banner button.primary{background:var(--acc);border-color:var(--acc);color:#fff;}
+.update-banner button.primary:hover{filter:brightness(.96);}
 .cc-sep{width:1px;height:20px;background:var(--line);margin:0 3px;}
 .cc-zoom{font-size:11px;font-weight:600;color:var(--t-1);min-width:42px;text-align:center;font-variant-numeric:tabular-nums;}
 #canvasWrap{transform-origin:center center;}
 .stage.pan-mode #maskCanvas{cursor:grab;}
 .stage.panning #maskCanvas{cursor:grabbing;}
 @media (max-width:768px){
-  .canvas-controls{ bottom:10px; padding:4px; }
+  .canvas-controls{ padding:5px; }
   .cc-btn{ width:38px;height:38px;font-size:16px; }
 }
 
 /* ───── 모바일 반응형 ───── */
 @media (max-width:768px){
   body{ overflow:auto; }
-  .app{ grid-template-rows:50px minmax(0,1fr) 32px; height:100vh; height:100dvh; }
+  .app{ height:100vh; height:100dvh; }
+  .tabbar{ gap:4px; }
+  .tab-btn{ padding:7px 10px; font-size:12px; }
+  .brand-title{ display:none; }
   .header{ padding:0 14px; }
   .brand-mark{ width:26px; height:26px; }
   .brand-title{ font-size:14px; }
@@ -299,6 +408,15 @@ input[type=file]{display:none;}
   .header{ padding-top:env(safe-area-inset-top); height:calc(50px + env(safe-area-inset-top)); }
   .footer{ padding-bottom:env(safe-area-inset-bottom); }
 }
+
+/* ═══ 배경 제거 탭 전용 ═══ */
+.block.disabled{opacity:.45;pointer-events:none;}
+#bg_canvasWrap{position:relative;display:none;max-width:100%;max-height:100%;transform-origin:center center;}
+#bg_viewCanvas,#bg_maskCanvas{display:block;border-radius:var(--r-md);box-shadow:var(--sh-2);}
+#bg_viewCanvas{ background:repeating-conic-gradient(#dfe2e8 0% 25%, #ffffff 0% 50%) 50%/16px 16px; }
+#bg_maskCanvas{position:absolute;top:0;left:0;cursor:crosshair;touch-action:none;}
+#bg_stage.pan-mode #bg_maskCanvas{cursor:grab;}
+#bg_stage.panning #bg_maskCanvas{cursor:grabbing;}
 </style>
 </head>
 <body>
@@ -312,15 +430,26 @@ input[type=file]{display:none;}
       </div>
     </div>
     <div class="head-actions">
-      <button class="lang-btn" id="langBtn" onclick="toggleLang()">EN</button>
-      <button class="install-btn" id="installBtn" style="display:none;" data-i18n="installBtn" onclick="doInstall()">⬇ Install</button>
+      <button class="lang-btn" id="langBtn" onclick="appToggleLang()">EN</button>
+      <!-- 워터마크 탭 엔진칩 -->
       <div class="engine-pill" id="enginePill">
         <span class="engine-dot" id="engineDot"></span>
         <span id="engineLabel">Loading…</span>
       </div>
+      <!-- 배경 제거 탭 엔진칩 -->
+      <div class="engine-pill tab-hidden" id="bg_enginePill">
+        <span class="engine-dot" id="bg_engineDot"></span>
+        <span id="bg_engineLabel">Loading…</span>
+      </div>
     </div>
+    <nav class="tabbar" id="tabbar">
+      <button class="tab-btn active" id="tabBtnWm" onclick="switchTab('wm')">🩹 <span data-i18n-shared="tabWm">워터마크 제거</span></button>
+      <button class="tab-btn" id="tabBtnBg" onclick="switchTab('bg')">✂ <span data-i18n-shared="tabBg">배경 제거</span></button>
+    </nav>
   </header>
 
+  <!-- ════════ 워터마크 제거 패널 ════════ -->
+  <div class="panel" id="tab-wm">
   <div class="main">
 
     <aside class="sidebar">
@@ -331,23 +460,25 @@ input[type=file]{display:none;}
         <div class="file-meta" id="fileMeta"></div>
       </div>
 
+      <!-- 수동 (Manual) — 다운로드 없이 바로 = 기본 길이라 2번 -->
       <div class="block">
-        <div class="block-title"><span class="num">2</span><span data-i18n="block2">Auto remove</span></div>
-        <button class="btn btn-auto" id="autoBtn" data-i18n="autoBtn" onclick="autoDetect()" disabled>✨ Auto-detect watermark</button>
-        <div class="hint" data-i18n="autoHint">Finds a bright watermark (logo or sparkle) in the bottom-right corner. Touch it up with the brush below if needed.</div>
-      </div>
-
-      <div class="block">
-        <div class="block-title"><span class="num">3</span><span data-i18n="block3">Paint manually</span></div>
+        <div class="block-title"><span class="num">2</span><span data-i18n="secManual">Manual</span></div>
         <div class="tool-grid">
-          <button class="tool-btn active" id="brushBtn" data-i18n="brush" onclick="setTool('brush')">🖌 Brush</button>
+          <button class="tool-btn" id="brushBtn" data-i18n="brush" onclick="setTool('brush')">🖌 Brush</button>
           <button class="tool-btn" id="eraserBtn" data-i18n="eraser" onclick="setTool('eraser')">🩹 Eraser</button>
           <button class="tool-btn" data-i18n="undo" onclick="undo()">↶ Undo</button>
           <button class="tool-btn" data-i18n="redo" onclick="redo()">↷ Redo</button>
         </div>
         <div class="row-label"><span data-i18n="brushSize">Brush size</span><span class="slider-val" id="brushSizeVal">36 px</span></div>
         <input type="range" id="brushSize" min="6" max="160" value="36" oninput="onBrushSize(this.value)">
-        <button class="tool-btn" data-i18n="clear" onclick="clearMask()" style="color:var(--danger);border-color:var(--danger-soft);">✕ Clear all</button>
+        <button class="tool-btn" data-i18n="clear" onclick="clearMask()" style="color:var(--danger);border-color:var(--danger-soft);background:var(--danger-soft);">✕ Clear all</button>
+      </div>
+
+      <!-- 자동 (Auto) -->
+      <div class="block">
+        <div class="block-title"><span class="num">3</span><span data-i18n="secAuto">Auto</span></div>
+        <button class="btn btn-auto" id="autoBtn" data-i18n="autoBtn" onclick="autoDetect()">✨ Auto-detect watermark</button>
+        <div class="hint" data-i18n="autoHint">Finds a bright watermark in the bottom-right corner. Touch it up with the brush if needed.</div>
       </div>
 
       <div class="block" style="margin-top:auto;">
@@ -357,16 +488,18 @@ input[type=file]{display:none;}
     </aside>
 
     <section class="stage" id="stage">
-      <div class="dropzone" id="dropzone">
-        <div class="big">🖼</div>
-        <div class="lead" data-i18n="dropLead">Drag &amp; drop an image</div>
-        <div class="sub" data-i18n="dropOr">or</div>
-        <button class="dz-btn" data-i18n="dropBtn" onclick="document.getElementById('fileInput').click()">Choose image</button>
-        <div class="sub" style="margin-top:8px;" data-i18n="dropNote">Files are never uploaded. Everything runs inside your browser.</div>
-      </div>
-      <div id="canvasWrap">
-        <canvas id="imgCanvas"></canvas>
-        <canvas id="maskCanvas"></canvas>
+      <div class="stage-view" id="stageView">
+        <div class="dropzone" id="dropzone">
+          <div class="big">🖼</div>
+          <div class="lead" data-i18n="dropLead">Drag &amp; drop an image</div>
+          <div class="sub" data-i18n="dropOr">or</div>
+          <button class="dz-btn" data-i18n="dropBtn" onclick="document.getElementById('fileInput').click()">Choose image</button>
+          <div class="sub" style="margin-top:8px;" data-i18n="dropNote">Files are never uploaded. Everything runs inside your browser.</div>
+        </div>
+        <div id="canvasWrap">
+          <canvas id="imgCanvas"></canvas>
+          <canvas id="maskCanvas"></canvas>
+        </div>
       </div>
       <div class="canvas-controls hidden" id="canvasControls">
         <button class="cc-btn" id="ccUndo" onclick="undo()" title="Undo">↶</button>
@@ -378,7 +511,7 @@ input[type=file]{display:none;}
         <button class="cc-btn" onclick="zoomFit()" title="Fit">⊡</button>
         <div class="cc-sep"></div>
         <button class="cc-btn" id="ccPan" onclick="togglePan()" title="Pan">✋</button>
-        <button class="cc-btn" id="ccRestore" onclick="restoreOriginal()" title="Restore original" style="color:var(--danger)">⟲</button>
+        <button class="cc-btn cc-reset" id="ccRestore" onclick="confirmReset('wm')" title="Reset" style="color:var(--danger)">⟲ <span data-i18n-shared="resetLabel">Reset</span></button>
       </div>
     </section>
 
@@ -388,15 +521,150 @@ input[type=file]{display:none;}
     <div class="fbar"><div class="ffill" id="ffill"></div></div>
     <span id="statusMsg" data-i18n="statusIdle">Idle</span>
   </footer>
-</div>
+  </div><!-- /tab-wm -->
 
-<!-- 진행 -->
+  <!-- ════════ 배경 제거 패널 ════════ -->
+  <div class="panel hidden" id="tab-bg">
+  <div class="main">
+
+    <aside class="sidebar">
+      <div class="block">
+        <div class="block-title"><span class="num">1</span><span data-i18n="block1">Image</span></div>
+        <button class="btn btn-ghost" id="bg_pickBtn" data-i18n="pick">📁 Choose image</button>
+        <input type="file" id="bg_fileInput" accept="image/*">
+        <div class="file-meta" id="bg_fileMeta"></div>
+      </div>
+
+      <!-- 수동 (Manual) — 배경 색 / 피사체 선택 / 보정 브러시 — 기본 길이라 2번 -->
+      <!-- 자동 (Auto) — AI 배경 빼기 (메인, 2번) -->
+      <div class="block disabled" id="bg_autoBlock">
+        <div class="block-title"><span class="num">2</span><span data-i18n="secAuto">Auto</span></div>
+        <button class="btn btn-primary" id="bg_cutBtn" data-i18n="cutBtn">✂ AI background erase</button>
+        <div class="hint" data-i18n="cutHint">AI keeps the subject and erases the background in one tap.</div>
+      </div>
+
+      <div class="block disabled" id="bg_manualBlock">
+        <div class="block-title"><span class="num">3</span><span data-i18n="secManual">Manual</span></div>
+
+        <div class="method-label" data-i18n="mWand">Color erase · restore</div>
+        <div class="tool-grid">
+          <button class="tool-btn" id="bg_wandBtn" data-i18n="wandTool">🪄 Color erase</button>
+          <button class="tool-btn" id="bg_wandKeepBtn" data-i18n="wandKeepTool">✨ Color restore</button>
+        </div>
+        <div class="hint" id="bg_wandGuide" data-i18n="wandGuide">Click the background color to erase. Not enough? Click again. Adjust with Tolerance.</div>
+        <div class="row-label"><span data-i18n="wandTol">Tolerance</span><span class="slider-val" id="bg_wandTolVal">40</span></div>
+        <input type="range" id="bg_wandTol" min="0" max="120" value="40">
+        <div class="range-ends"><span data-i18n="wandRangeLo">Exact color</span><span data-i18n="wandRangeHi">Similar colors</span></div>
+        <div class="tool-grid">
+          <button class="tool-btn seg active" id="bg_wandFlood" data-i18n="wandFlood">⬡ Contiguous</button>
+          <button class="tool-btn seg" id="bg_wandGlobal" data-i18n="wandGlobal">▦ All</button>
+        </div>
+
+        <div class="method-label" data-i18n="mSam" style="margin-top:10px;">Object select</div>
+        <button class="tool-btn" id="bg_samBtn" data-i18n="samTool" style="width:100%;">🎯 Click an object</button>
+        <div class="tool-grid">
+          <button class="tool-btn" id="bg_samCutBtn" data-i18n="samCut" disabled>Remove object</button>
+          <button class="tool-btn" id="bg_samKeepBtn" data-i18n="samKeep" disabled>Keep object only</button>
+        </div>
+        <div class="hint" data-i18n="samHint">Click an object and AI grabs the whole thing — then choose remove or keep.</div>
+
+        <div class="method-label" data-i18n="mLasso" style="margin-top:10px;">Lasso</div>
+        <button class="tool-btn" id="bg_lassoBtn" data-i18n="lassoTool" style="width:100%;">⭕ Draw a loop</button>
+        <div class="tool-grid">
+          <button class="tool-btn" id="bg_lassoCutBtn" data-i18n="lassoCutTool" disabled>Erase inside</button>
+          <button class="tool-btn" id="bg_lassoAddBtn" data-i18n="lassoAddTool" disabled>Restore inside</button>
+          <button class="tool-btn" id="bg_lassoKeepBtn" data-i18n="lassoKeepTool" disabled>Keep inside only</button>
+        </div>
+        <div class="hint" id="bg_lassoGuide" data-i18n="lassoGuide">Draw a loop first, then choose erase or keep.</div>
+
+        <div class="method-label" data-i18n="mBrush" style="margin-top:10px;">Brush · Eraser</div>
+        <div class="tool-grid">
+          <button class="tool-btn" id="bg_keepBtn" data-i18n="keepTool">🖌 Brush</button>
+          <button class="tool-btn" id="bg_cutToolBtn" data-i18n="cutTool">🩹 Eraser</button>
+          <button class="tool-btn" id="bg_undoBtn" data-i18n="undo">↶ Undo</button>
+          <button class="tool-btn" id="bg_redoBtn" data-i18n="redo">↷ Redo</button>
+        </div>
+        <div class="row-label"><span data-i18n="brushSize">Brush size</span><span class="slider-val" id="bg_brushSizeVal">36 px</span></div>
+        <input type="range" id="bg_brushSize" min="6" max="200" value="36">
+
+        <div class="method-label" data-i18n="mFeather" style="margin-top:10px;">Refine edge</div>
+        <div class="row-label"><span data-i18n="feather">Refine edge</span><span class="slider-val" id="bg_featherVal">0 px</span></div>
+        <input type="range" id="bg_feather" min="0" max="20" value="0">
+        <div class="hint" data-i18n="featherHint">Smooths the cut-out edge — handy for hair or rough outlines. Works with every tool.</div>
+      </div>
+
+      <div class="block disabled" id="bg_dlBlock" style="margin-top:auto;">
+        <div class="block-title"><span class="num">4</span><span data-i18n="secSave">Save</span></div>
+        <button class="btn btn-primary" id="bg_dlPngBtn" data-i18n="dlPng">⬇ Transparent PNG</button>
+        <label class="opt-row"><input type="checkbox" id="bg_trimChk"><span data-i18n="trimLabel">Trim transparent margins</span></label>
+        <div class="hint" data-i18n="dlHint">Saves the subject with a transparent background. Drop it into PowerPoint and the background stays clear.</div>
+        <button class="btn btn-ghost" id="bg_dlSvgBtn" data-i18n="dlSvg" style="margin-top:4px;">⬇ SVG (vector)</button>
+        <div class="hint" data-i18n="dlSvgHint">For logos and symbols. Stays sharp at any size. Photos are better saved as PNG.</div>
+      </div>
+    </aside>
+
+    <section class="stage" id="bg_stage">
+      <div class="stage-view" id="bg_stageView">
+        <div class="dropzone" id="bg_dropzone">
+          <div class="big">🖼</div>
+          <div class="lead" data-i18n="dropLead">Drag &amp; drop an image</div>
+          <div class="sub" data-i18n="dropOr">or</div>
+          <button class="dz-btn" id="bg_dzBtn" data-i18n="dropBtn">Choose image</button>
+          <div class="sub" style="margin-top:8px;" data-i18n="dropNote">Files stay on your device. Everything runs inside your browser.</div>
+        </div>
+        <div id="bg_canvasWrap">
+          <canvas id="bg_viewCanvas"></canvas>
+          <canvas id="bg_maskCanvas"></canvas>
+        </div>
+      </div>
+      <div class="canvas-controls hidden" id="bg_canvasControls">
+        <button class="cc-btn" id="bg_ccUndo" title="Undo">↶</button>
+        <button class="cc-btn" id="bg_ccRedo" title="Redo">↷</button>
+        <div class="cc-sep"></div>
+        <button class="cc-btn" id="bg_ccZoomOut" title="Zoom out">−</button>
+        <span class="cc-zoom" id="bg_ccZoom">100%</span>
+        <button class="cc-btn" id="bg_ccZoomIn" title="Zoom in">+</button>
+        <button class="cc-btn" id="bg_ccFit" title="Fit">⊡</button>
+        <div class="cc-sep"></div>
+        <button class="cc-btn" id="bg_ccPan" title="Pan">✋</button>
+        <button class="cc-btn cc-crop" id="bg_ccMask" title="Mask view">◧ <span data-i18n="maskViewLabel">B/W check</span></button>
+        <button class="cc-btn cc-crop" id="bg_ccCrop" title="Crop">⛶ <span data-i18n-shared="cropLabel">Crop</span></button>
+        <button class="cc-btn cc-reset" id="bg_ccReset" title="Reset" style="color:var(--danger)">⟲ <span data-i18n-shared="resetLabel">Reset</span></button>
+      </div>
+      <!-- 자르기 적용/취소 바 (자르기 모드 + 영역 선택 시 표시) -->
+      <div class="crop-bar" id="bg_cropBar">
+        <span class="crop-hint" data-i18n-shared="cropGuide">Drag the area to crop</span>
+        <button id="bg_cropApply" class="primary" data-i18n-shared="cropApply">Apply</button>
+        <button id="bg_cropCancel" data-i18n-shared="cropCancel">Cancel</button>
+      </div>
+    </section>
+
+  </div>
+
+  <footer class="footer">
+    <div class="fbar"><div class="ffill" id="bg_ffill"></div></div>
+    <span id="bg_statusMsg" data-i18n="statusIdle">Idle</span>
+  </footer>
+  </div><!-- /tab-bg -->
+</div><!-- /app -->
+
+<!-- 워터마크 진행 -->
 <div class="overlay" id="overlay">
   <div class="card" id="progressCard">
     <div id="cardIcon"><div class="spinner"></div></div>
     <div class="card-stage" id="cardStage"></div>
     <div class="card-detail" id="cardDetail"></div>
     <div class="card-pct" id="cardPct"></div>
+  </div>
+</div>
+
+<!-- 배경 제거 진행 -->
+<div class="overlay" id="bg_overlay">
+  <div class="card" id="bg_progressCard">
+    <div id="bg_cardIcon"><div class="spinner"></div></div>
+    <div class="card-stage" id="bg_cardStage"></div>
+    <div class="card-detail" id="bg_cardDetail"></div>
+    <div class="card-pct" id="bg_cardPct"></div>
   </div>
 </div>
 
@@ -423,8 +691,27 @@ input[type=file]{display:none;}
 </div>
 
 <div class="toast" id="toast"></div>
+<div class="toast" id="bg_toast"></div>
 
-<!-- 라이브러리: onnxruntime-web -->
+<!-- 새 버전 알림 배너 (PWA) -->
+<div class="update-banner" id="updateBanner">
+  <span id="updateBannerMsg">A new version is available. Update now?</span>
+  <button id="updateNowBtn" class="primary">Update</button>
+  <button id="updateLaterBtn">Later</button>
+</div>
+
+<!-- 확인 팝업 (리셋 등 되돌릴 수 없는 동작) -->
+<div class="confirm-overlay" id="confirmOverlay">
+  <div class="confirm-box">
+    <div class="confirm-msg" id="confirmMsg"></div>
+    <div class="confirm-actions">
+      <button id="confirmCancel" data-i18n-shared="confirmCancel">Cancel</button>
+      <button class="danger" id="confirmOk" data-i18n-shared="confirmReset">Reset</button>
+    </div>
+  </div>
+</div>
+
+<!-- 워터마크 엔진: onnxruntime-web (탭 진입 시 lazy 로드) -->
 <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.20.1/dist/ort.min.js"></script>
 <script>
 // ──────────────────────────────────────────────
@@ -435,10 +722,11 @@ const I18N = {
     brandSub:'브라우저에서 처리 · 업로드 없음',
     installBtn:'⬇ 앱 설치',
     block1:'이미지', pick:'📁 이미지 선택',
-    block2:'자동 제거', autoBtn:'✨ 워터마크 자동 감지',
-    autoHint:'우측 하단의 밝은 워터마크(로고·반짝임)를 자동으로 찾아 표시합니다. 부족하면 아래 브러시로 다듬으세요.',
-    block3:'직접 칠하기', brush:'🖌 브러시', eraser:'🩹 지우개', undo:'↶ 취소', redo:'↷ 다시',
-    brushSize:'브러시 크기', clear:'✕ 표시 전체 지우기',
+    secAuto:'자동', secManual:'수동', autoBtn:'✨ 워터마크 자동 감지',
+    autoHint:'우측 하단의 밝은 워터마크(로고·반짝임)를 자동으로 찾아 표시합니다. 부족하면 위 브러시로 다듬으세요.',
+    block3:'영역 표시', brush:'🖌 브러시', eraser:'🩹 지우개', undo:'↶ 취소', redo:'↷ 다시',
+    brushSize:'브러시 크기', clear:'✕ 영역 전체 지우기',
+    reset:'⟲ 리셋', resetDone:'처음 상태로 되돌렸습니다',
     run:'워터마크 제거', runHintIdle:'이미지를 먼저 선택하세요', runHintReady:'워터마크 영역을 표시한 뒤 제거하세요',
     dropLead:'이미지를 끌어다 놓으세요', dropOr:'또는', dropBtn:'이미지 선택',
     dropNote:'파일은 서버로 전송되지 않습니다. 모든 처리는 이 브라우저 안에서 이뤄집니다.',
@@ -446,11 +734,15 @@ const I18N = {
     resultTitle:'✓ 제거 완료', tagBefore:'원본', tagAfter:'제거 결과',
     close:'닫기', continue:'↩ 이어서 다듬기', download:'⬇ 다운로드',
     engLoading:'엔진 불러오는 중…', engReadyGpu:'엔진 준비됨 · GPU 가속', engReady:'엔진 준비됨', engErr:'엔진 로딩 실패',
+    aiPrep:'AI 자동감지 준비 중…', aiPrepDetail:'처음 한 번 인식 모델을 내려받습니다 (이후 캐시)',
+    aiDetecting:'워터마크 분석 중…', aiDetectingDetail:'코너의 로고·글자를 찾습니다',
     onlyImage:'이미지 파일만 가능합니다', cantOpen:'이미지를 열 수 없습니다',
     pickFirst:'먼저 이미지를 선택하세요',
     noAuto:'자동 감지된 워터마크가 없습니다 — 브러시로 칠해주세요',
     autoAmbiguous:'자동 감지가 애매합니다 — 브러시로 칠해주세요',
     autoDone:'워터마크 영역을 표시했습니다 — [워터마크 제거]를 누르세요',
+    aiChecking:'AI가 로고·글자 워터마크를 확인 중… 그동안 다른 작업 하셔도 됩니다',
+    aiAddDone:'AI가 로고·글자 워터마크를 추가로 표시했습니다',
     maskEmpty:'워터마크 영역을 표시하세요 (자동 감지 또는 브러시)',
     processing:'처리 중…', analyzing:'워터마크 영역을 분석합니다',
     removing:'워터마크 제거 중…', onGpu:'GPU로 처리 중', onCpu:'처리 중 (잠시 걸릴 수 있습니다)',
@@ -462,16 +754,17 @@ const I18N = {
     installAndroid:'브라우저 메뉴에서 "앱 설치"를 선택하세요',
     secUnit:'초',
     restored:'원본으로 되돌렸습니다', panOn:'이동 모드 — 드래그해서 그림을 옮기세요', panOff:'그리기 모드로 돌아왔습니다',
-    ttUndo:'되돌리기', ttRedo:'다시', ttZoomOut:'축소', ttZoomIn:'확대', ttFit:'화면에 맞춤', ttPan:'이동(손)', ttRestore:'원본으로 되돌리기',
+    ttUndo:'되돌리기', ttRedo:'다시', ttZoomOut:'축소', ttZoomIn:'확대', ttFit:'화면에 맞춤', ttPan:'이동(손)', ttRestore:'리셋',
   },
   en:{
     brandSub:'Runs in your browser · No upload',
     installBtn:'⬇ Install',
     block1:'Image', pick:'📁 Choose image',
-    block2:'Auto remove', autoBtn:'✨ Auto-detect watermark',
-    autoHint:'Finds a bright watermark (logo or sparkle) in the bottom-right corner. Touch it up with the brush below if needed.',
-    block3:'Paint manually', brush:'🖌 Brush', eraser:'🩹 Eraser', undo:'↶ Undo', redo:'↷ Redo',
-    brushSize:'Brush size', clear:'✕ Clear all',
+    secAuto:'Auto', secManual:'Manual', autoBtn:'✨ Auto-detect watermark',
+    autoHint:'Finds a bright watermark (logo or sparkle) in the bottom-right corner. Touch it up with the brush above if needed.',
+    block3:'Mark area', brush:'🖌 Brush', eraser:'🩹 Eraser', undo:'↶ Undo', redo:'↷ Redo',
+    brushSize:'Brush size', clear:'✕ Clear marks',
+    reset:'⟲ Reset', resetDone:'Reset to the starting point',
     run:'Remove watermark', runHintIdle:'Choose an image first', runHintReady:'Mark the watermark, then remove',
     dropLead:'Drag & drop an image', dropOr:'or', dropBtn:'Choose image',
     dropNote:'Files are never uploaded. Everything runs inside your browser.',
@@ -479,11 +772,15 @@ const I18N = {
     resultTitle:'✓ Done', tagBefore:'Before', tagAfter:'After',
     close:'Close', continue:'↩ Touch up more', download:'⬇ Download',
     engLoading:'Loading engine…', engReadyGpu:'Ready · GPU', engReady:'Ready', engErr:'Engine failed to load',
+    aiPrep:'Preparing auto-detect…', aiPrepDetail:'Downloads the detector once (cached afterward)',
+    aiDetecting:'Analyzing watermark…', aiDetectingDetail:'Finding logo/text in the corner',
     onlyImage:'Image files only', cantOpen:'Couldn’t open that image',
     pickFirst:'Choose an image first',
     noAuto:'No watermark detected — please paint it with the brush',
     autoAmbiguous:'Auto-detect was unclear — please use the brush',
     autoDone:'Watermark marked — tap Remove watermark',
+    aiChecking:'AI is checking for logo/text watermarks… you can keep working meanwhile',
+    aiAddDone:'AI marked additional logo/text watermarks',
     maskEmpty:'Mark the watermark first (auto-detect or brush)',
     processing:'Processing…', analyzing:'Analyzing the marked area',
     removing:'Removing watermark…', onGpu:'Processing on GPU', onCpu:'Processing (may take a moment)',
@@ -495,7 +792,7 @@ const I18N = {
     installAndroid:'Choose "Install app" from your browser menu',
     secUnit:'s',
     restored:'Restored to the original', panOn:'Pan mode — drag to move the image', panOff:'Back to drawing mode',
-    ttUndo:'Undo', ttRedo:'Redo', ttZoomOut:'Zoom out', ttZoomIn:'Zoom in', ttFit:'Fit to screen', ttPan:'Pan (hand)', ttRestore:'Restore original',
+    ttUndo:'Undo', ttRedo:'Redo', ttZoomOut:'Zoom out', ttZoomIn:'Zoom in', ttFit:'Fit to screen', ttPan:'Pan (hand)', ttRestore:'Reset',
   }
 };
 let LANG = localStorage.getItem('sr_lang') || (navigator.language && navigator.language.toLowerCase().startsWith('ko') ? 'ko' : 'en');
@@ -503,7 +800,8 @@ function t(key){ return (I18N[LANG] && I18N[LANG][key]) || I18N.en[key] || key; 
 function applyLang(lang){
   LANG = lang; localStorage.setItem('sr_lang', lang);
   document.documentElement.lang = lang;
-  document.querySelectorAll('[data-i18n]').forEach(el=>{ el.textContent = t(el.dataset.i18n); });
+  // 워터마크 패널 안의 i18n만 갱신 (배경 탭 텍스트는 배경 스크립트가 담당)
+  document.querySelectorAll('#tab-wm [data-i18n]').forEach(el=>{ el.textContent = t(el.dataset.i18n); });
   document.getElementById('langBtn').textContent = (lang==='ko') ? 'EN' : '한국어';
   // 캔버스 컨트롤 툴팁
   const ttMap={ccUndo:'ttUndo',ccRedo:'ttRedo',ccPan:'ttPan',ccRestore:'ttRestore'};
@@ -536,7 +834,7 @@ ort_.env.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.20.1/d
 const state = {
   img:null, imgW:0, imgH:0, fileName:null,
   origURL:null, resultURL:null,
-  tool:'brush', brushSize:36, drawing:false, lastX:0, lastY:0,
+  tool:null, brushSize:36, drawing:false, lastX:0, lastY:0,  // tool=null = 초기 선택 없음(체크 ✓ X)
   history:[], hpos:-1,
   session:null, engineReady:false, engineProvider:null, engineFailed:false,
   startTime:0, lastStatusKey:null,
@@ -545,6 +843,112 @@ const state = {
   pinching:false, pinchD:0, pinchM:null, pinchZ:1, pinchPX:0, pinchPY:0,
   originalURL:null,
 };
+
+// ──────────────────────────────────────────────
+//  도구별 커서 — 선택한 도구 모양으로 마우스 커서 변경
+//  el.style.cursor = url(svg) hx hy, fallback
+//  hx/hy = hotspot(클릭 지점). SVG는 작은 인라인 아이콘.
+// ──────────────────────────────────────────────
+// SVG를 data: URL 커서로 인코딩. 공백·#·"·< 등 안전 인코딩.
+function cursorURL(svg, hx, hy, fallback){
+  const enc = encodeURIComponent(svg)
+    .replace(/%20/g,' ')           // 공백은 그대로 둬도 안전 + 길이 절약
+    .replace(/%3D/g,'=').replace(/%3A/g,':').replace(/%2F/g,'/');
+  return 'url("data:image/svg+xml;utf8,'+enc+'") '+hx+' '+hy+', '+(fallback||'auto');
+}
+// ★ 조준 십자 — 클릭 지점(hotspot)을 또렷하게 표시하는 공통 부품.
+//   (cx,cy) 중심에 흰 외곽선 + 십자 + 가운데 점. 보이는 점 = 실제 찍히는 픽셀.
+//   color = 십자·점 색(생략 시 짙은 회색). 도구별 색 구분에 사용.
+function aimCross(cx,cy,color){
+  const c = color || '#1d1d1f';
+  return ''
+    // 흰 테두리(어떤 배경에도 보이게)
+    +'<line x1="'+cx+'" y1="'+(cy-9)+'" x2="'+cx+'" y2="'+(cy-3)+'" stroke="#ffffff" stroke-width="3.4" stroke-linecap="round"/>'
+    +'<line x1="'+cx+'" y1="'+(cy+3)+'" x2="'+cx+'" y2="'+(cy+9)+'" stroke="#ffffff" stroke-width="3.4" stroke-linecap="round"/>'
+    +'<line x1="'+(cx-9)+'" y1="'+cy+'" x2="'+(cx-3)+'" y2="'+cy+'" stroke="#ffffff" stroke-width="3.4" stroke-linecap="round"/>'
+    +'<line x1="'+(cx+3)+'" y1="'+cy+'" x2="'+(cx+9)+'" y2="'+cy+'" stroke="#ffffff" stroke-width="3.4" stroke-linecap="round"/>'
+    // 색 십자
+    +'<line x1="'+cx+'" y1="'+(cy-9)+'" x2="'+cx+'" y2="'+(cy-3)+'" stroke="'+c+'" stroke-width="1.5" stroke-linecap="round"/>'
+    +'<line x1="'+cx+'" y1="'+(cy+3)+'" x2="'+cx+'" y2="'+(cy+9)+'" stroke="'+c+'" stroke-width="1.5" stroke-linecap="round"/>'
+    +'<line x1="'+(cx-9)+'" y1="'+cy+'" x2="'+(cx-3)+'" y2="'+cy+'" stroke="'+c+'" stroke-width="1.5" stroke-linecap="round"/>'
+    +'<line x1="'+(cx+3)+'" y1="'+cy+'" x2="'+(cx+9)+'" y2="'+cy+'" stroke="'+c+'" stroke-width="1.5" stroke-linecap="round"/>'
+    // 가운데 점 = 정확한 클릭 픽셀
+    +'<circle cx="'+cx+'" cy="'+cy+'" r="1.5" fill="'+c+'" stroke="#ffffff" stroke-width="1"/>';
+}
+// 매직완드(색 빼기/더하기) — 봉 아이콘 없이 조준 십자만. 클릭점이 또렷.
+//  hotspot = 십자 중심. 색 빼기=빨강, 색 더하기=파랑(십자·점 색으로만 구분).
+const WAND_AIM = 13; // 십자 중심 = hotspot (26×26 가운데)
+function wandCursor(color){
+  return cursorURL(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 26 26">'
+    +aimCross(WAND_AIM, WAND_AIM, color)
+    +'</svg>', WAND_AIM, WAND_AIM, 'crosshair');
+}
+const CUR_WAND_CUT  = wandCursor('#ff4d4d'); // 색 빼기 = 빨강
+const CUR_WAND_KEEP = wandCursor('#3b6cf5'); // 색 더하기 = 파랑
+// 개체 선택(SAM) — 조준 십자(클릭 선택). hotspot = 중앙.
+const SAM_AIM = 13;
+const CUR_SAM = cursorURL(
+  '<svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 26 26">'
+  +'<circle cx="13" cy="13" r="9" fill="none" stroke="#ffffff" stroke-width="3.4"/>'
+  +'<circle cx="13" cy="13" r="9" fill="none" stroke="#1d1d1f" stroke-width="1.5"/>'
+  +aimCross(SAM_AIM, SAM_AIM)
+  +'</svg>', SAM_AIM, SAM_AIM, 'crosshair');
+// 원형 브러시 커서 생성 — 크기 반영. color로 살리기(파랑)/지우기(빨강) 구분.
+function brushCursor(brushPx, color){
+  // 화면 표시 지름 = 브러시 px(이미지 좌표) * 줌. 너무 작/크면 클램프.
+  const r = Math.max(5, Math.min(48, (brushPx||36)/2));
+  const sz = Math.ceil(r*2)+4, c = sz/2;
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="'+sz+'" height="'+sz+'" viewBox="0 0 '+sz+' '+sz+'">'
+    +'<circle cx="'+c+'" cy="'+c+'" r="'+r+'" fill="none" stroke="#ffffff" stroke-width="3"/>'
+    +'<circle cx="'+c+'" cy="'+c+'" r="'+r+'" fill="none" stroke="'+color+'" stroke-width="1.5"/>'
+    +'<line x1="'+c+'" y1="'+(c-3)+'" x2="'+c+'" y2="'+(c+3)+'" stroke="'+color+'" stroke-width="1.3"/>'
+    +'<line x1="'+(c-3)+'" y1="'+c+'" x2="'+(c+3)+'" y2="'+c+'" stroke="'+color+'" stroke-width="1.3"/>'
+    +'</svg>';
+  return cursorURL(svg, c, c, 'crosshair');
+}
+// 지우개 아이콘 커서. hotspot = 지우개 끝(좌하단).
+const CUR_ERASER = cursorURL(
+  '<svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 26 26">'
+  +'<g transform="rotate(-40 13 13)">'
+  +'<rect x="6" y="9" width="14" height="9" rx="2" fill="#ff6b6b" stroke="#1d1d1f" stroke-width="1.4"/>'
+  +'<rect x="6" y="13" width="14" height="5" rx="1.5" fill="#ffd9d9" stroke="#1d1d1f" stroke-width="1.4"/>'
+  +'</g>'
+  +'</svg>', 5, 21, 'crosshair');
+// 올가미(둘러싸기) 커서 — 펜촉 + 점선 올가미 고리. hotspot = 펜촉(좌하단).
+const CUR_LASSO = cursorURL(
+  '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 28 28">'
+  +'<ellipse cx="16" cy="9" rx="9" ry="6.5" fill="none" stroke="#ffffff" stroke-width="3"/>'
+  +'<ellipse cx="16" cy="9" rx="9" ry="6.5" fill="none" stroke="#1d1d1f" stroke-width="1.4" stroke-dasharray="2.4 2.2"/>'
+  +'<path d="M11 14 q-2 4 -6 7" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round"/>'
+  +'<path d="M11 14 q-2 4 -6 7" fill="none" stroke="#1d1d1f" stroke-width="1.4" stroke-linecap="round"/>'
+  +'<circle cx="5" cy="21" r="2" fill="#1d1d1f" stroke="#ffffff" stroke-width="1.1"/>' // 시작점 = hotspot
+  +'</svg>', 5, 21, 'crosshair');
+
+// 도구에 맞는 커서를 캔버스에 적용.
+//  panMode일 땐 CSS(.pan-mode #canvas{cursor:grab})에 양보 → 인라인 비움.
+//  pan 끄면 다시 도구 커서 복원.
+function applyToolCursor(canvasId, tool, opts){
+  const cv = document.getElementById(canvasId);
+  if(!cv) return;
+  opts = opts || {};
+  if(opts.panMode){ cv.style.cursor=''; return; } // CSS grab/grabbing에 맡김
+  let cur;
+  switch(tool){
+    case 'wand':     cur = CUR_WAND_CUT; break;  // 색 빼기 = 빨강 조준점
+    case 'wandkeep': cur = CUR_WAND_KEEP; break; // 색 더하기 = 파랑 조준점
+    case 'lasso':     cur = CUR_LASSO; break; // 둘러싸서 빼기
+    case 'lassokeep': cur = CUR_LASSO; break; // 둘러싸서 자르기
+    case 'sam':    cur = CUR_SAM; break;
+    case 'crop':   cur = 'crosshair'; break; // 자르기 — 십자
+    case 'eraser': cur = CUR_ERASER; break;                       // 워터마크 탭 마스크 지우개
+    case 'cut':    cur = brushCursor(opts.brushPx, '#ff4d4d'); break; // 배경 지우기(빨강)
+    case 'keep':   cur = brushCursor(opts.brushPx, '#3b6cf5'); break; // 전경 살리기(파랑)
+    case 'brush':  cur = brushCursor(opts.brushPx, '#3b6cf5'); break; // 워터마크 칠하기(파랑)
+    default:       cur = 'crosshair';
+  }
+  cv.style.cursor = cur;
+}
 
 // ──────────────────────────────────────────────
 //  엔진(모델) 로딩
@@ -612,7 +1016,7 @@ document.getElementById('stage').addEventListener('drop',e=>{
 //  캔버스 셋업 + 반응형
 // ──────────────────────────────────────────────
 function fitCanvas(){
-  const area=document.getElementById('stage');
+  const area=document.getElementById('stageView');
   const pad=28;
   const maxW=area.clientWidth-pad*2, maxH=area.clientHeight-pad*2;
   const scale=Math.min(1,maxW/state.imgW,maxH/state.imgH);
@@ -640,6 +1044,8 @@ function setupCanvas(img){
   applyView();
   document.getElementById('canvasControls').classList.remove('hidden');
   updateUndoButtons();
+  // 이미지를 고른 순간 = 자동 인식 AI를 조용히 미리 받기 시작 (자동 버튼 누를 땐 이미 준비됨)
+  setTimeout(()=>{ try{ wmEnsureFlorence(); }catch(_){} }, 600);
 }
 window.addEventListener('resize',()=>{ if(state.img){ fitCanvas(); applyView(); } });
 
@@ -663,6 +1069,8 @@ function togglePan(){
   state.panMode=!state.panMode;
   document.getElementById('ccPan').classList.toggle('active',state.panMode);
   document.getElementById('stage').classList.toggle('pan-mode',state.panMode);
+  // 팬 켜짐 → 인라인 커서 비워 CSS grab 양보 / 팬 꺼짐 → 도구 커서 복원
+  applyToolCursor('maskCanvas', state.tool, {panMode:state.panMode, brushPx:state.brushSize});
   toast(state.panMode?t('panOn'):t('panOff'));
 }
 function startPan(ev){ state.panning=true; state.panSX=ev.clientX-state.panX; state.panSY=ev.clientY-state.panY; document.getElementById('stage').classList.add('panning'); }
@@ -693,6 +1101,25 @@ function restoreOriginal(){
     clearMask();
     zoomFit();
     toast(t('restored'));
+  };
+  im.src=state.originalURL;
+}
+// 전체 리셋 — 작업을 처음(이미지 막 불러온) 상태로. 엔진은 유지.
+function wmReset(){
+  if(!state.img){ return; }
+  const im=new Image();
+  im.onload=()=>{
+    const c=document.getElementById('imgCanvas');
+    c.getContext('2d').clearRect(0,0,c.width,c.height);
+    c.getContext('2d').drawImage(im,0,0,c.width,c.height);
+    state.origURL=state.originalURL;
+    // 마스크·히스토리 초기화
+    const mc=document.getElementById('maskCanvas'), mctx=mc.getContext('2d');
+    mctx.globalCompositeOperation='source-over'; mctx.clearRect(0,0,mc.width,mc.height);
+    state.history=[]; state.hpos=-1; pushHistory();
+    setTool(null); zoomFit();   // 초기 선택 없음 — 사용자가 도구를 누를 때만 선택
+    setStatus('statusMark',false);
+    toast(t('resetDone'));
   };
   im.src=state.originalURL;
 }
@@ -739,7 +1166,7 @@ function canvasXY(ev){
   const cv=document.getElementById('maskCanvas'), r=cv.getBoundingClientRect();
   return {x:(ev.clientX-r.left)*(cv.width/r.width), y:(ev.clientY-r.top)*(cv.height/r.height)};
 }
-function drawStart(ev){ state.drawing=true; const {x,y}=canvasXY(ev); state.lastX=x; state.lastY=y; stroke(x,y,x,y); }
+function drawStart(ev){ if(state.tool!=='brush' && state.tool!=='eraser') return; state.drawing=true; const {x,y}=canvasXY(ev); state.lastX=x; state.lastY=y; stroke(x,y,x,y); }
 function drawMove(ev){ if(!state.drawing) return; const {x,y}=canvasXY(ev); stroke(state.lastX,state.lastY,x,y); state.lastX=x; state.lastY=y; }
 function drawEnd(){ if(!state.drawing) return; state.drawing=false; pushHistory(); }
 function stroke(x1,y1,x2,y2){
@@ -761,8 +1188,12 @@ function setTool(tl){
     const p=document.getElementById('ccPan'); if(p) p.classList.remove('active');
     document.getElementById('stage').classList.remove('pan-mode','panning');
   }
+  applyToolCursor('maskCanvas', tl, {panMode:state.panMode, brushPx:state.brushSize});
 }
-function onBrushSize(v){ state.brushSize=parseInt(v); document.getElementById('brushSizeVal').textContent=v+' px'; }
+function onBrushSize(v){ state.brushSize=parseInt(v); document.getElementById('brushSizeVal').textContent=v+' px';
+  // 브러시/지우개일 때 원형 커서 크기 실시간 반영
+  if(state.tool==='brush'||state.tool==='eraser') applyToolCursor('maskCanvas', state.tool, {panMode:state.panMode, brushPx:state.brushSize});
+}
 
 function pushHistory(){
   const cv=document.getElementById('maskCanvas');
@@ -795,19 +1226,130 @@ const WM_REGIONS = [
   [0.84,0.88,1.00,1.00], // 우하단 코너 (세로 위 경계 88% — 위쪽 빛·UI 배제, 가로는 여유)
 ];
 
-function autoDetect(){
+// 자동 인식 = 하이브리드.
+//  (a) 픽셀 휴리스틱(detectWatermarkInRegion) = Gemini 별(sparkle) 담당.
+//  (b) Florence-2 grounding = 우하단 로고·글자 담당 (lazy 로드, 실패해도 (a)는 반영됨).
+// 둘의 박스를 합집합으로 마스크에 칠한다.
+async function autoDetect(){
   if(!state.img){ toast(t('pickFirst')); return; }
   const W=state.imgW, H=state.imgH;
-  const ictx=document.getElementById('imgCanvas').getContext('2d');
+  const imgCanvas=document.getElementById('imgCanvas');
+  const ictx=imgCanvas.getContext('2d');
   const mctx=document.getElementById('maskCanvas').getContext('2d');
   mctx.globalCompositeOperation='source-over'; mctx.fillStyle='rgba(59,108,245,.5)';
+  const PAD=8; // 박스 외곽 반투명 흡수용 패딩(px)
+
+  // (a) 픽셀 휴리스틱 — 즉시 칠하고 즉시 보고. 기다림 없음.
   let found=0;
   for(const r of WM_REGIONS){
     const wm=detectWatermarkInRegion(ictx,W,H,r[0],r[1],r[2],r[3]);
     if(wm){ mctx.fillRect(wm.x,wm.y,wm.w,wm.h); found++; }
   }
-  if(found){ pushHistory(); toast(t('autoDone')); }
-  else { toast(t('noAuto')); }
+  if(found){ pushHistory(); toast(t('autoDone')); return; } // ★ 휴리스틱 성공 = 즉시 끝(AI 안 돌림 = 빠름)
+  toast(t('aiChecking'));
+
+  // (b) Florence-2 grounding — 휴리스틱이 못 잡았을 때만(found===0) 실행. 화면 안 막음.
+  //     로고·글자 가능성 → AI로 박스 추가. 그동안 브러시·제거 등 모든 작업 가능.
+  const myImg=state.img; // 이미지가 바뀌면 늦게 온 결과는 폐기
+  (async()=>{
+    try{
+      if(!await wmEnsureFlorence()) { if(!found) toast(t('noAuto')); return; }
+      if(state.img!==myImg) return;
+      const boxes=wmMergeBoxes(await wmFlorenceDetect(imgCanvas));
+      if(state.img!==myImg) return;
+      mctx.globalCompositeOperation='source-over'; mctx.fillStyle='rgba(59,108,245,.5)';
+      let add=0;
+      for(const b of boxes){
+        const x0=Math.max(0,b.x-PAD), y0=Math.max(0,b.y-PAD);
+        const x1=Math.min(W,b.x+b.w+PAD), y1=Math.min(H,b.y+b.h+PAD);
+        mctx.fillRect(x0,y0,x1-x0,y1-y0); add++;
+      }
+      if(add){ pushHistory(); toast(t('aiAddDone')); }
+      else if(!found){ toast(t('noAuto')); }
+    }catch(e){ console.error('[wm] florence detect failed', e); if(!found) toast(t('noAuto')); }
+  })();
+}
+
+// ── Florence-2 자동인식 (onnx-community/Florence-2-base-ft, MIT) ──────────
+//  로고·글자 워터마크를 모양까지 인식. 최초 1회 lazy 로드(약 246MB, 브라우저 캐시).
+const wmAI = { model:null, tok:null, proc:null, ready:false, promise:null, failed:false,
+  MODEL_ID:'onnx-community/Florence-2-base-ft' };
+
+// 한 번만 로드 — 이미지 선택 시 미리 받기와 자동 버튼 클릭이 같은 promise를 공유.
+// 조용히(화면 안 막고) 로드. 엔진칩에만 로딩 표시.
+function wmEnsureFlorence(){
+  if(wmAI.ready) return Promise.resolve(true);
+  if(wmAI.failed) return Promise.resolve(false);
+  const deps = window.WMAI_DEPS;
+  if(!deps){ console.error('[wm] transformers module not ready'); return Promise.resolve(false); } // 모듈 아직 미로드 → 휴리스틱만
+  if(!wmAI.promise){
+    setEngine('loading', t('engLoading'));
+    wmAI.promise=(async()=>{
+      try{
+        const device = navigator.gpu ? 'webgpu' : 'wasm';
+        // embed_tokens=fp16(정확도), vision/encoder/decoder=q4(경량). 정확도 동일, 다운로드 최소.
+        wmAI.model = await deps.Florence2ForConditionalGeneration.from_pretrained(wmAI.MODEL_ID, {
+          dtype:{ embed_tokens:'fp16', vision_encoder:'q4', encoder_model:'q4', decoder_model_merged:'q4' }, device });
+        wmAI.tok  = await deps.AutoTokenizer.from_pretrained(wmAI.MODEL_ID);
+        wmAI.proc = await deps.AutoProcessor.from_pretrained(wmAI.MODEL_ID);
+        wmAI.ready=true;
+        return true;
+      }catch(e){
+        console.error('[wm] Florence load failed', e);
+        wmAI.failed=true; // 한 번 실패하면 이후엔 휴리스틱만 (반복 시도 X)
+        return false;
+      }finally{
+        setEngine('ready','');
+      }
+    })();
+  }
+  return wmAI.promise;
+}
+
+// Florence grounding → 우하단 코너의 로고/글자 박스만 반환. 없으면 [].
+async function wmFlorenceDetect(canvas){
+  const W=canvas.width, H=canvas.height;
+  const image=await window.WMAI_DEPS.RawImage.fromCanvas(canvas);
+  const vision=await wmAI.proc(image);
+  const boxes=[];
+  // 분석 1회로 통합 — 'watermark and logo'를 한 문장으로 grounding (옛 2회 → 1회 = 시간 절반)
+  for(const phrase of ['watermark and logo']){
+    const prompts=wmAI.proc.construct_prompts('<CAPTION_TO_PHRASE_GROUNDING>'+phrase);
+    const textIn=wmAI.tok(prompts);
+    const ids=await wmAI.model.generate({ ...textIn, ...vision, max_new_tokens:64, num_beams:1, do_sample:false });
+    const txt=wmAI.tok.batch_decode(ids, { skip_special_tokens:false })[0];
+    const r=wmAI.proc.post_process_generation(txt, '<CAPTION_TO_PHRASE_GROUNDING>', image.size)['<CAPTION_TO_PHRASE_GROUNDING>'];
+    for(const b of (r.bboxes||[])){
+      const cx=(b[0]+b[2])/2, cy=(b[1]+b[3])/2;
+      const areaFrac=((b[2]-b[0])*(b[3]-b[1]))/(W*H);
+      // ★ 오검출 차단: 중심이 우하단 외곽(>62%) + 면적<10%만 채택.
+      //   별 이미지에서 화면·자막 글자를 'watermark'로 오인하는 걸 기각.
+      if(cx>W*0.62 && cy>H*0.62 && areaFrac<0.10){
+        boxes.push({ x:Math.round(b[0]), y:Math.round(b[1]), w:Math.round(b[2]-b[0]), h:Math.round(b[3]-b[1]) });
+      }
+    }
+  }
+  return boxes;
+}
+
+// 거의 같은 박스 합치기 (phrase 2개가 같은 로고를 2번 줄 때 IoU>0.5면 합침).
+function wmMergeBoxes(boxes){
+  const out=[];
+  for(const b of boxes){
+    let merged=false;
+    for(const o of out){
+      const ix=Math.max(b.x,o.x), iy=Math.max(b.y,o.y);
+      const ax=Math.min(b.x+b.w,o.x+o.w), ay=Math.min(b.y+b.h,o.y+o.h);
+      const inter=Math.max(0,ax-ix)*Math.max(0,ay-iy);
+      const ua=b.w*b.h + o.w*o.h - inter;
+      if(ua>0 && inter/ua>0.5){
+        const nx0=Math.min(b.x,o.x), ny0=Math.min(b.y,o.y), nx1=Math.max(b.x+b.w,o.x+o.w), ny1=Math.max(b.y+b.h,o.y+o.h);
+        o.x=nx0; o.y=ny0; o.w=nx1-nx0; o.h=ny1-ny0; merged=true; break;
+      }
+    }
+    if(!merged) out.push({ ...b });
+  }
+  return out;
 }
 
 // 한 영역에서 워터마크 후보 1개를 찾는다.
@@ -1092,9 +1634,40 @@ document.addEventListener('keydown',e=>{
   if(e.key===']'){document.getElementById('brushSize').value=Math.min(160,state.brushSize+6);onBrushSize(document.getElementById('brushSize').value);}
 });
 
-// ── PWA: service worker 등록 ──
+// ── PWA: service worker 등록 + 새 버전 알림 배너 ──
+// 새 SW가 대기(waiting) 상태가 되면 배너 표시 → [업데이트]만 적용(강제 새로고침 X).
+function showUpdateBanner(reg){
+  const b=document.getElementById('updateBanner');
+  if(!b || b.classList.contains('show')) return;
+  document.getElementById('updateBannerMsg').textContent = shared('updateMsg');
+  document.getElementById('updateNowBtn').textContent = shared('updateNow');
+  document.getElementById('updateLaterBtn').textContent = shared('updateLater');
+  b.classList.add('show');
+  document.getElementById('updateLaterBtn').onclick=()=>b.classList.remove('show');
+  document.getElementById('updateNowBtn').onclick=()=>{
+    const w=reg.waiting; if(w){ w.postMessage({type:'SKIP_WAITING'}); } // 새 SW 활성화 요청
+    b.classList.remove('show');
+  };
+}
 if('serviceWorker' in navigator){
-  window.addEventListener('load', ()=> navigator.serviceWorker.register('sw.js').catch(()=>{}));
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('sw.js').then(reg=>{
+      // 등록 시 이미 대기 중인 새 버전이 있으면 즉시 배너
+      if(reg.waiting && navigator.serviceWorker.controller) showUpdateBanner(reg);
+      // 새 버전이 발견되면 설치 완료(installed) 시점에 배너
+      reg.addEventListener('updatefound', ()=>{
+        const sw=reg.installing; if(!sw) return;
+        sw.addEventListener('statechange', ()=>{
+          if(sw.state==='installed' && navigator.serviceWorker.controller) showUpdateBanner(reg);
+        });
+      });
+    }).catch(()=>{});
+    // [업데이트]로 새 SW가 controller가 되면 한 번만 새로고침
+    let refreshing=false;
+    navigator.serviceWorker.addEventListener('controllerchange', ()=>{
+      if(refreshing) return; refreshing=true; location.reload();
+    });
+  });
 }
 // ── PWA: 설치 프롬프트 (Android/Chrome) ──
 let deferredPrompt=null;
@@ -1120,9 +1693,1701 @@ window.addEventListener('appinstalled', ()=>{ const b=document.getElementById('i
   if(isIOS && !standalone){ const b=document.getElementById('installBtn'); if(b) b.style.display='inline-flex'; }
 })();
 
-// 진입 시 언어 적용 + 엔진 로드
+// 진입 시 언어 적용. ★ 엔진은 lazy: 활성 탭에서만 로드 (아래 탭 코디네이터에서 처리)
 applyLang(LANG);
+
+// ══════════════════════════════════════════════════════════════════════
+//  탭 코디네이터 (워터마크 ↔ 배경 제거) — 공유 전역
+//  - 엔진 lazy: 탭 진입 시 해당 엔진만 로드 (배경은 window.bgEnsureEngine).
+//  - 언어 토글: 양쪽 패널 i18n + 공유 헤더(설치 버튼·탭 라벨) 갱신.
+// ══════════════════════════════════════════════════════════════════════
+const SHARED_I18N = {
+  ko:{ tabWm:'워터마크 제거', tabBg:'배경 빼기', installBtn:'⬇ 앱 설치',
+       resetLabel:'리셋', confirmCancel:'취소', confirmReset:'리셋',
+       resetConfirmMsg:'처음 상태로 되돌립니다. 계속할까요?',
+       updateMsg:'새 버전이 있어요. 업데이트하시겠어요?', updateNow:'업데이트', updateLater:'나중에',
+       cropLabel:'자르기', cropGuide:'자를 영역을 드래그하세요', cropApply:'적용', cropCancel:'취소',
+       cropDone:'선택한 영역으로 잘랐습니다', cropTiny:'영역이 너무 작습니다 — 다시 드래그하세요' },
+  en:{ tabWm:'Watermark', tabBg:'Background', installBtn:'⬇ Install',
+       resetLabel:'Reset', confirmCancel:'Cancel', confirmReset:'Reset',
+       resetConfirmMsg:'Reset to the start? This clears your work.',
+       updateMsg:'A new version is available. Update now?', updateNow:'Update', updateLater:'Later',
+       cropLabel:'Crop', cropGuide:'Drag the area to crop', cropApply:'Apply', cropCancel:'Cancel',
+       cropDone:'Cropped to the selected area', cropTiny:'Area too small — drag again' },
+};
+function shared(k){ return (SHARED_I18N[LANG] && SHARED_I18N[LANG][k]) || SHARED_I18N.en[k] || k; }
+function applySharedI18n(lang){
+  const m = SHARED_I18N[lang] || SHARED_I18N.en;
+  document.querySelectorAll('[data-i18n-shared]').forEach(el=>{ const k=el.dataset.i18nShared; if(m[k]) el.textContent=m[k]; });
+  const ib=document.getElementById('installBtn'); if(ib && m.installBtn) ib.textContent=m.installBtn;
+}
+// 확인 팝업 — 리셋 등. which='wm'|'bg'. [리셋]만 실제 초기화.
+function confirmReset(which){
+  const ov=document.getElementById('confirmOverlay');
+  document.getElementById('confirmMsg').textContent = shared('resetConfirmMsg');
+  document.getElementById('confirmCancel').textContent = shared('confirmCancel');
+  document.getElementById('confirmOk').textContent = shared('confirmReset');
+  ov.classList.add('show');
+  const cancel=document.getElementById('confirmCancel');
+  const ok=document.getElementById('confirmOk');
+  const close=()=>{ ov.classList.remove('show'); ok.onclick=null; cancel.onclick=null; ov.onclick=null; };
+  cancel.onclick=close;
+  ov.onclick=(e)=>{ if(e.target===ov) close(); }; // 바깥 클릭 = 취소
+  ok.onclick=()=>{ close(); if(which==='wm'){ wmReset(); } else if(window.bgDoReset){ window.bgDoReset(); } };
+}
+let CURRENT_TAB='wm';
+function switchTab(tab){
+  if(tab===CURRENT_TAB) return;
+  CURRENT_TAB=tab;
+  const isWm = tab==='wm';
+  document.getElementById('tab-wm').classList.toggle('hidden',!isWm);
+  document.getElementById('tab-bg').classList.toggle('hidden',isWm);
+  document.getElementById('tabBtnWm').classList.toggle('active',isWm);
+  document.getElementById('tabBtnBg').classList.toggle('active',!isWm);
+  // 헤더 엔진칩 전환
+  document.getElementById('enginePill').classList.toggle('tab-hidden',!isWm);
+  document.getElementById('bg_enginePill').classList.toggle('tab-hidden',isWm);
+  // 활성 탭 엔진만 lazy 로드
+  if(isWm){ if(!state.session && !state.engineFailed) loadEngine(); }
+  else { if(window.bgEnsureEngine) window.bgEnsureEngine(); }
+  // 캔버스 레이아웃 재계산 (숨김→표시 시 크기 0 방지)
+  if(isWm){ if(state.img){ fitCanvas(); applyView(); } }
+  else { if(window.bgRefitCanvas) window.bgRefitCanvas(); }
+}
+// 공유 언어 토글: 워터마크 + 배경 + 공유 헤더 모두 갱신
+function appToggleLang(){
+  const next = (LANG==='ko') ? 'en' : 'ko';
+  applyLang(next);                 // 워터마크 패널
+  applySharedI18n(next);           // 공유 헤더(탭·설치)
+  if(window.bgApplyLang) window.bgApplyLang(next); // 배경 패널
+}
+// 초기 공유 i18n + 워터마크 탭 엔진 lazy 로드(기본 활성 탭)
+applySharedI18n(LANG);
 loadEngine();
+</script>
+
+<!-- 배경 제거 엔진: transformers.js (MODNet/SAM) — 배경 탭 진입 시 lazy 로드 -->
+<script type="module">
+
+// ══════════════════════════════════════════════════════════════════════
+//  BG CUT — 배경 제거(누끼) 워크플로우
+//
+//  ★ 이식 안내(SUNNY REMOVER 탭 통합용):
+//    아래 bgEngine* / bgRemove / bgPaintAlpha / bgBuildForeground / bgDownloadPng
+//    5개 핵심 함수가 워크플로우 전체다. 전역/네임스페이스 충돌을 피하려고
+//    모든 배경제거 관련 함수·상태를 bg 접두어로 통일했다(bgState, bg*).
+//    UI 바인딩(맨 아래 bgBindEvents)만 리무버 탭 구조에 맞게 갈아끼우면 된다.
+//
+//  엔진: transformers.js v3 — Xenova/modnet (Apache 2.0, 상업·외부공유 무료)
+//        탭(또는 [배경 제거]) 최초 클릭 시 lazy load. WebGPU 우선, 실패 시 WASM.
+//  해상도: 모델은 내부적으로 작게 분석 → alpha를 원본 W×H로 업스케일 →
+//          원본 RGB × alpha = 원본 해상도 그대로의 투명 PNG. 다운스케일 저장 안 함.
+// ══════════════════════════════════════════════════════════════════════
+import { AutoModel, AutoProcessor, RawImage, SamModel, Tensor as BGTensor, env,
+         Florence2ForConditionalGeneration, AutoTokenizer } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.5.0/dist/transformers.min.js';
+// ★ 모델 셀프호스팅: 우리 도메인 ./models/ 먼저 (한국에서 허깅페이스보다 빠름),
+//   없으면 허깅페이스로 폴백. 받은 모델은 브라우저 캐시에 자동 저장(2회째부터 0초).
+env.allowLocalModels = true;
+env.localModelPath = './models/';
+env.allowRemoteModels = true;
+
+// ──────────────────────────────────────────────
+//  다국어
+// ──────────────────────────────────────────────
+const I18N = {
+  ko:{
+    installBtn:'⬇ 앱 설치',
+    block1:'이미지', pick:'📁 이미지 선택',
+    secAuto:'자동', secManual:'수동', secSave:'저장',
+    cutBtn:'✂ 자동 배경 빼기',
+    cutHint:'인물·캐릭터·물건을 알아서 남기고 배경만 한 번에 지웁니다. 아쉬우면 아래 수동 도구로 다듬으세요.',
+    keepTool:'🖌 더하기 붓', cutTool:'🩹 빼기 붓', undo:'↶ 취소', redo:'↷ 다시',
+    brushSize:'붓 크기',
+    mWand:'색 빼기 · 더하기', mSam:'물체 클릭 — AI 자동 인식', mLasso:'올가미 — 직접 둘러싸기', mBrush:'붓 — 세밀하게 더하기 · 빼기', mFeather:'가장자리 조정',
+    feather:'가장자리 조정', featherHint:'잘라낸 가장자리를 매끈하게 — 머리카락·거친 외곽에 좋습니다. 모든 도구에 적용됩니다.',
+    reset:'⟲ 리셋', resetDone:'처음 상태로 되돌렸습니다',
+    dlPng:'⬇ 투명 PNG', trimLabel:'여백 자동 제거', dlHint:'배경이 투명한 상태로 피사체만 저장합니다. PPT에 넣으면 배경이 비칩니다.',
+    dlSvg:'⬇ SVG (벡터)', dlSvgHint:'로고·심볼에 적합. 크게 키워도 안 깨집니다. 사진은 PNG가 낫습니다.',
+    tracing:'벡터로 변환 중…', tracingDetail:'전경을 패스로 추적합니다', savedSvg:'SVG를 저장했습니다',
+    svgEngineErr:'벡터 변환 엔진을 불러오지 못했습니다',
+    dropLead:'이미지를 끌어다 놓으세요', dropOr:'또는', dropBtn:'이미지 선택',
+    dropNote:'파일은 기기에 머뭅니다. 모든 처리는 이 브라우저 안에서 이뤄집니다.',
+    statusIdle:'대기 중', statusReady:'수동·자동 중 원하는 방법으로 시작하세요', statusCut:'필요하면 붓·가장자리 조정으로 다듬으세요',
+    engLoading:'AI엔진 준비 중…', engReadyGpu:'사용 가능', engReady:'사용 가능', engErr:'AI엔진 불러오기 실패',
+    onlyImage:'이미지 파일만 가능합니다', cantOpen:'이미지를 열 수 없습니다',
+    pickFirst:'먼저 이미지를 선택하세요',
+    loadingEngine:'AI엔진 준비 중…', loadingEngineDetail:'처음 한 번 모델을 내려받습니다 (이후 캐시)',
+    cutting:'배경 분리 중…', onGpu:'잠시만 기다려 주세요', onCpu:'처리 중 (잠시 걸릴 수 있습니다)',
+    cutDone:'배경을 뺐습니다 — 필요하면 붓·가장자리 조정으로 다듬으세요',
+    autoColorDetail:'테두리 색을 분석합니다',
+    autoObjDone:'배경을 뺐습니다',
+    autoSkyDone:'하늘을 뺐습니다',
+    autoHardHint:'자동으로 잡기 어려운 그림입니다 — 색 빼기나 올가미로 직접 빼보세요',
+    branchObj:'🧺 배경 빼기', branchSky:'☁ 하늘 빼기',
+    branchHint:'물건·인물이면 배경 빼기, 풍경이면 하늘 빼기를 고르세요',
+    engNotReady:'엔진이 아직 준비되지 않았습니다. 잠시 후 다시 시도하세요.',
+    failTitle:'처리 실패', genericErr:'처리 중 오류가 발생했습니다',
+    failStatus:'실패: ', close:'닫기', retry:'다시 시도', secUnit:'초',
+    panOn:'이동 모드 — 드래그해서 그림을 옮기세요', panOff:'그리기 모드로 돌아왔습니다',
+    needCut:'먼저 이미지를 선택하세요', savedPng:'투명 PNG를 저장했습니다',
+    ttUndo:'되돌리기', ttRedo:'다시', ttZoomOut:'축소', ttZoomIn:'확대', ttFit:'화면에 맞춤', ttPan:'이동(손)', ttReset:'리셋',
+    ttMask:'마스크 보기 — 흰색=남는 부분, 검정=빠지는 부분',
+    installIOS:'공유 버튼 → "홈 화면에 추가"를 누르면 앱으로 설치됩니다',
+    installAndroid:'브라우저 메뉴에서 "앱 설치"를 선택하세요',
+    // 색 빼기 / 색 더하기 (매직완드)
+    wandTool:'🪄 색 빼기', wandKeepTool:'✨ 색 더하기', wandTol:'색 범위',
+    wandRangeLo:'정확한 색', wandRangeHi:'비슷한 색까지',
+    wandFlood:'⬡ 인접', wandGlobal:'▦ 전체',
+    wandGuide:'뺄 배경 색을 클릭하세요. 덜 빠지면 다시 클릭, 색 범위로 조절합니다.',
+    wandHint:'단색·평면 배경에 가장 좋습니다. 배경을 클릭하면 비슷한 색 픽셀이 투명해집니다.',
+    wandOn:'뺄 배경 색을 클릭하세요. 덜 빠지면 다시 클릭, 색 범위로 조절', wandDone:'색을 뺐습니다',
+    wandKeepOn:'더할 색을 클릭하세요. 덜 살아나면 다시 클릭, 색 범위로 조절', wandKeepDone:'색을 더했습니다',
+    // 올가미 — 먼저 그리고, 그 다음 빼기/남기기 결정
+    lassoTool:'⭕ 올가미 그리기',
+    lassoCutTool:'안쪽 빼기', lassoAddTool:'안쪽 더하기', lassoKeepTool:'안쪽만 남기기',
+    lassoGuide:'먼저 올가미를 그리세요. 빼기·더하기·남기기는 그 다음에 고릅니다.',
+    lassoOn:'영역을 빙 둘러 그리세요',
+    lassoPicked:'둘러쌌어요 — 빼기·더하기·남기기 중 고르세요. 잘못 그렸으면 그냥 다시 그리세요',
+    lassoAddDone:'둘러싼 안쪽을 더했어요(되살림)',
+    lassoCleared:'올가미를 지웠어요 — 다시 그리세요',
+    // 흑백 확인 (마스크 보기)
+    maskViewLabel:'흑백 확인',
+    maskViewOn:'흑백 확인 — 흰색=남는 부분, 검정=빠지는 부분. 한 번 더 누르면 원본 보기',
+    maskViewOff:'원본 보기로 돌아왔어요',
+    lassoCutDone:'둘러싼 안쪽을 뺐어요', lassoKeepDone:'둘러싼 안쪽만 남겼어요',
+    // 물체 클릭 (SAM)
+    samTool:'🎯 물체 클릭', samCut:'물체 빼기', samKeep:'물체만 남기기',
+    samHint:'물체를 클릭하면 AI가 통째로 잡아줘요 — 그 다음 뺄지 남길지 고르세요.',
+    samLoading:'물체 인식 준비 중…', samLoadingDetail:'이미지를 한 번 분석합니다 (이후 클릭은 즉시)',
+    samEmbedding:'이미지 분석 중…', samInfer:'물체를 찾는 중…',
+    samOn:'물체를 클릭하세요 — AI가 통째로 잡아줘요', samPicked:'물체를 잡았어요 — 뺄지 남길지 고르세요',
+    samNone:'그 위치에서 물체를 찾지 못했어요 — 다른 곳을 클릭하세요',
+    samEngineErr:'물체 인식 엔진을 불러오지 못했습니다', samCutDone:'선택한 물체를 뺐어요', samKeepDone:'선택한 물체만 남겼어요',
+  },
+  en:{
+    installBtn:'⬇ Install',
+    block1:'Image', pick:'📁 Choose image',
+    secAuto:'Auto', secManual:'Manual', secSave:'Save',
+    cutBtn:'✂ Auto background erase',
+    cutHint:'Keeps people, characters and objects, and erases the background in one tap. Refine with the manual tools below if needed.',
+    keepTool:'🖌 Restore brush', cutTool:'🩹 Erase brush', undo:'↶ Undo', redo:'↷ Redo',
+    brushSize:'Brush size',
+    mWand:'Color erase · restore', mSam:'Click object — AI picks it', mLasso:'Lasso — draw it yourself', mBrush:'Brush — fine erase · restore', mFeather:'Refine edge',
+    feather:'Refine edge', featherHint:'Smooths the cut-out edge — handy for hair or rough outlines. Works with every tool.',
+    reset:'⟲ Reset', resetDone:'Reset to the starting point',
+    dlPng:'⬇ Transparent PNG', trimLabel:'Trim transparent margins', dlHint:'Saves the subject with a transparent background. Drop it into PowerPoint and the background stays clear.',
+    dlSvg:'⬇ SVG (vector)', dlSvgHint:'For logos and symbols. Stays sharp at any size. Photos are better saved as PNG.',
+    tracing:'Tracing to vector…', tracingDetail:'Tracing the subject into paths', savedSvg:'Saved the SVG',
+    svgEngineErr:'Couldn’t load the vector tracer',
+    dropLead:'Drag & drop an image', dropOr:'or', dropBtn:'Choose image',
+    dropNote:'Files stay on your device. Everything runs inside your browser.',
+    statusIdle:'Idle', statusReady:'Start with Manual or Auto', statusCut:'Refine with the brush or edge tools if needed',
+    engLoading:'Loading AI engine…', engReadyGpu:'Ready', engReady:'Ready', engErr:'AI engine failed',
+    onlyImage:'Image files only', cantOpen:'Couldn’t open that image',
+    pickFirst:'Choose an image first',
+    loadingEngine:'Loading AI engine…', loadingEngineDetail:'Downloads the model once, then caches it',
+    cutting:'Separating background…', onGpu:'Just a moment', onCpu:'Processing (may take a moment)',
+    cutDone:'Background removed — refine with the brush or edge tools if needed',
+    autoColorDetail:'Reading the border colors',
+    autoObjDone:'Background removed',
+    autoSkyDone:'Sky removed',
+    autoHardHint:'Tricky image to auto-detect — try Color erase or the Lasso to remove it yourself',
+    branchObj:'🧺 Erase background', branchSky:'☁ Erase sky',
+    branchHint:'Pick Erase background for objects/people, or Erase sky for scenery',
+    engNotReady:'The engine isn’t ready yet. Please try again in a moment.',
+    failTitle:'Failed', genericErr:'Something went wrong',
+    failStatus:'Failed: ', close:'Close', retry:'Try again', secUnit:'s',
+    panOn:'Pan mode — drag to move the image', panOff:'Back to drawing mode',
+    needCut:'Choose an image first', savedPng:'Saved the transparent PNG',
+    ttUndo:'Undo', ttRedo:'Redo', ttZoomOut:'Zoom out', ttZoomIn:'Zoom in', ttFit:'Fit to screen', ttPan:'Pan (hand)', ttReset:'Reset',
+    ttMask:'Mask view — white = kept, black = erased',
+    installIOS:'Tap Share → "Add to Home Screen" to install the app',
+    installAndroid:'Choose "Install app" from your browser menu',
+    // Color erase / restore (magic wand)
+    wandTool:'🪄 Color erase', wandKeepTool:'✨ Color restore', wandTol:'Tolerance',
+    wandRangeLo:'Exact color', wandRangeHi:'Similar colors',
+    wandFlood:'⬡ Contiguous', wandGlobal:'▦ All',
+    wandGuide:'Click the background color to erase. Not enough? Click again. Adjust with Tolerance.',
+    wandHint:'Best for flat, solid-color backgrounds. Click the background and matching pixels become transparent.',
+    wandOn:'Click the background color to erase. Not enough? Click again. Adjust with Tolerance', wandDone:'Color erased',
+    wandKeepOn:'Click a color to restore. Not enough? Click again. Adjust with Tolerance', wandKeepDone:'Color restored',
+    // Lasso — draw first, then decide
+    lassoTool:'⭕ Draw a loop',
+    lassoCutTool:'Erase inside', lassoAddTool:'Restore inside', lassoKeepTool:'Keep inside only',
+    lassoGuide:'Draw a loop first, then choose erase, restore, or keep.',
+    lassoOn:'Draw a loop around the area',
+    lassoPicked:'Loop closed — choose erase, restore, or keep. Drew it wrong? Just draw again',
+    lassoAddDone:'Restored the inside',
+    lassoCleared:'Lasso cleared — draw again',
+    // Mask view (B/W check)
+    maskViewLabel:'B/W check',
+    maskViewOn:'B/W check — white = kept, black = erased. Tap again for normal view',
+    maskViewOff:'Back to normal view',
+    lassoCutDone:'Erased the inside', lassoKeepDone:'Kept only the inside',
+    // Object select (SAM)
+    samTool:'🎯 Click an object', samCut:'Erase object', samKeep:'Keep object only',
+    samHint:'Click an object (e.g. the hand or the phone), then choose remove or keep.',
+    samLoading:'Preparing object select…', samLoadingDetail:'Analyzes the image once, then clicks are instant',
+    samEmbedding:'Analyzing the image…', samInfer:'Finding the object…',
+    samOn:'Object select — click an object', samPicked:'Object selected — choose remove or keep',
+    samNone:'No object found there — try clicking elsewhere',
+    samEngineErr:'Couldn’t load the object select engine', samCutDone:'Removed the selected object', samKeepDone:'Kept only the selected object',
+  }
+};
+// ★ 언어는 양 탭이 단일 키(sr_lang)를 공유 — 한쪽만 영어로 남는 불일치 방지.
+//   (옛 bgcut_lang 키가 있으면 1회 흡수해 sr_lang로 이관)
+let LANG = localStorage.getItem('sr_lang') || localStorage.getItem('bgcut_lang')
+  || (navigator.language && navigator.language.toLowerCase().startsWith('ko') ? 'ko' : 'en');
+const t = (k)=> (I18N[LANG] && I18N[LANG][k]) || I18N.en[k] || k;
+// ★ 통합: 모든 배경 탭 DOM id는 bg_ 접두어. $()가 자동으로 bg_ 붙임.
+const $ = (id)=>document.getElementById('bg_'+id);
+
+function applyLang(lang){
+  LANG = lang; localStorage.setItem('sr_lang', lang); // 양 탭 단일 키 공유
+  document.documentElement.lang = lang;
+  document.querySelectorAll('#tab-bg [data-i18n]').forEach(el=>{ el.textContent = t(el.dataset.i18n); });
+  // (공유 헤더가 언어 버튼 텍스트를 담당 — 배경 스크립트는 건드리지 않음)
+  const tt={ccUndo:'ttUndo',ccRedo:'ttRedo',ccZoomOut:'ttZoomOut',ccZoomIn:'ttZoomIn',ccFit:'ttFit',ccPan:'ttPan',ccMask:'ttMask',ccReset:'ttReset'};
+  for(const id in tt){ const el=$(id); if(el) el.title=t(tt[id]); }
+  bgRefreshEngineLabel();
+  bgRefreshStatus();
+}
+function toggleLang(){ applyLang(LANG==='ko' ? 'en' : 'ko'); }
+
+// ══════════════════════════════════════════════════════════════════════
+//  배경제거 상태 (이식 시 이 객체째로 옮김)
+// ══════════════════════════════════════════════════════════════════════
+const bgState = {
+  img:null, imgW:0, imgH:0, fileName:null,
+  rgbCanvas:null,            // 원본 RGB (원본 해상도) — 합성·다운로드 기준
+  alpha:null,                // 표시·출력용 알파 (페더 적용 후) — 원본 해상도
+  alphaBase:null,            // 페더 적용 전 원본 경계 알파 (페더 0 = base 그대로)
+  feather:0,                 // 페더(가장자리 블러) px
+  bgMode:'auto',             // Auto / Manual
+  cut:false,
+  model:null, processor:null, engineReady:false, engineProvider:null, engineFailed:false, engineLoading:false, lastEngineError:null,
+  tool:null, brushSize:36, drawing:false, lastX:0, lastY:0,  // tool=null = 초기 선택 없음(체크 ✓ X)
+  history:[], hpos:-1,       // alpha 스냅샷 기반 undo/redo
+  statusKey:'statusIdle',
+  // 자르기(크롭): 모드 토글 + 드래그 사각 선택(이미지 좌표). 적용 시 이미지·alpha 동일 크롭.
+  cropMode:false, cropRect:null, cropDragging:false, cropTrim:false,
+  // 매직완드 (배경 색 빼기)
+  wandTol:40, wandMode:'flood',
+  // 매직완드 실시간 미리보기 세션:
+  //  wandClick = 마지막 클릭 지점(cx,cy), wandBase = 그 클릭 직전 alpha 스냅샷.
+  //  슬라이더를 움직이면 wandBase 위에 현재 색 범위로 같은 지점을 다시 빼서 실시간 반영.
+  //  (다른 도구·이전 클릭으로 뺀 부분은 wandBase에 보존돼 안 날아감)
+  wandClick:null, wandBase:null, wandTarget:0,
+  // 올가미(둘러싸기): 드래그 중 캔버스 좌표 점들 수집 → 손 떼면 닫힌 영역으로 채워 적용
+  lassoPts:null, lassoActive:false,
+  // SAM (물체 선택)
+  samModel:null, samProcessor:null, samReady:false, samLoading:false, samEmbeddings:null, samImageInputs:null, samPicked:null,
+  samLastError:null,
+  // 줌·팬·핀치
+  zoom:1, panX:0, panY:0, panMode:false, panning:false, panSX:0, panSY:0,
+  pinching:false, pinchD:0, pinchM:null, pinchZ:1, pinchPX:0, pinchPY:0,
+};
+
+// ══════════════════════════════════════════════════════════════════════
+//  1) AI 엔진 로딩 (범용 분할 모델 — AutoModel + AutoProcessor, lazy load)
+//     ★ MODNet(사람 전용 매팅)을 BiRefNet_lite(범용 분할)로 교체.
+//        BiRefNet = SOD/DIS 계열 — remove.bg·Photoroom 부류가 쓰는 범용 모델.
+//        사람·물건·동물·만화·건물 = 종류 안 가리고 "화면의 주제"를 따낸다.
+//        손에 쥔 폰처럼 사람+물건이 한 덩어리인 경우도 통째로 잡는다(MODNet·ISNet은 폰만 잡음).
+//        구멍 뚫린 물건(키링 고리)도 배경이 비치게 처리한다.
+//     ★ 라이선스: onnx-community/BiRefNet_lite-ONNX = MIT (상업·외부공유 무료).
+//        RMBG 계열(BRIA, 비상업)은 금지.
+//     입력 1024. 출력은 logits(하나 채널) → sigmoid. WASM 메모리를 아끼려 fp16 사용.
+//     로드 실패 시 인물 매팅 MODNet(Apache 2.0)으로 자동 폴백 → AI 경로가 죽지 않는다.
+//     입출력 텐서 이름은 모델마다 달라서 세션에서 직접 읽어 쓴다.
+// ══════════════════════════════════════════════════════════════════════
+const BG_MODEL_PRIMARY  = 'onnx-community/BiRefNet_lite-ONNX'; // 범용 분할 (MIT)
+const BG_MODEL_FALLBACK = 'Xenova/modnet';                    // 인물 매팅 폴백 (Apache 2.0)
+// COOP/COEP 헤더 없는 정적 호스팅(SharedArrayBuffer 불가)에서도 돌도록 단일 스레드 고정.
+try{
+  env.backends.onnx.wasm.numThreads = 1;
+  env.backends.onnx.wasm.proxy = false;
+}catch(_){}
+
+async function bgBuildModel(device){
+  // ★ AI 경로 = 사람 전용 MODNet (검증됨, 사람 사진을 깨끗이 따낸다).
+  //   범용 분할(BiRefNet_lite)은 transformers.js 3.5.0 브라우저 엔진에서 추론이 안 된다
+  //   (WebGPU=computeSliceOffsets 깨짐 / WASM=model execution 실패). 로드는 되지만
+  //   실제 추론에서 죽어서 쓸 수 없음 → 도는 게 확인되는 범용 모델을 찾으면 그때 교체.
+  //   단색·하늘 배경은 bgRemove ①단계(색기반)에서 이미 처리되므로,
+  //   AI 경로는 사실상 "복잡한 배경 속 인물"용이다. MODNet=WASM q8(가벼움).
+  const tryLoad = async (id, dtype, dev) => {
+    const [model, processor] = await Promise.all([
+      AutoModel.from_pretrained(id, { dtype, device: dev }),
+      AutoProcessor.from_pretrained(id),
+    ]);
+    return { model, processor };
+  };
+  // MODNet은 WebGPU에서 잘 돌고 빠르다(BiRefNet과 달리 추론이 깨지지 않음).
+  //   device별 dtype: webgpu=fp32(빠름) / wasm=q8(가벼움).
+  const dtype = device==='webgpu' ? 'fp32' : 'q8';
+  return await tryLoad(BG_MODEL_FALLBACK, dtype, device);
+}
+async function bgLoadEngine(){
+  if(bgState.engineReady || bgState.engineLoading) return;
+  bgState.engineLoading = true;
+  bgSetEngine('loading', t('engLoading'));
+  // MODNet(현 AI 경로)은 WebGPU에서 잘 돌고 빠르다 → WebGPU 우선, 실패 시 WASM.
+  const order = navigator.gpu ? ['webgpu','wasm'] : ['wasm'];
+  let lastErr=null;
+  for(const device of order){
+    try{
+      const { model, processor } = await bgBuildModel(device);
+      bgState.model = model; bgState.processor = processor;
+      bgState.engineProvider = device; bgState.engineReady = true; bgState.engineFailed = false;
+      bgSetEngine('ready', t('engReady'));
+      bgState.engineLoading=false;
+      // 물체 클릭(SAM) 모델도 한가할 때 조용히 미리 받기 — 첫 클릭 대기 제거
+      setTimeout(()=>{ try{ bgSamEnsureEngine(); }catch(_){} }, 1200);
+      return;
+    }catch(e){
+      console.error('[bg] engine load failed on', device, e);
+      lastErr=e;
+    }
+  }
+  bgState.engineFailed=true; bgState.lastEngineError=(lastErr&&lastErr.message)?lastErr.message:String(lastErr);
+  bgSetEngine('err', t('engErr'));
+  bgState.engineLoading=false;
+}
+function bgSetEngine(cls,label){
+  const dot=$('engineDot');
+  dot.className='engine-dot '+(cls==='ready'?'ready':cls==='loading'?'loading':cls==='err'?'err':'');
+  $('engineLabel').textContent=label;
+  const pill=$('enginePill'); if(pill) pill.style.display = (cls==='ready') ? 'none' : 'flex';
+}
+function bgRefreshEngineLabel(){
+  if(bgState.engineReady) bgSetEngine('ready', bgState.engineProvider==='webgpu' ? t('engReadyGpu') : t('engReady'));
+  else if(bgState.engineFailed) bgSetEngine('err', t('engErr'));
+  else bgSetEngine('loading', t('engLoading'));
+}
+
+// ══════════════════════════════════════════════════════════════════════
+//  2) 자동 배경 제거 (이미지 → 전경 alpha)
+// ══════════════════════════════════════════════════════════════════════
+// 자동 배경 빼기 — AI 모델(MODNet)이 메인, 색기반은 보조.
+//  ① AI를 먼저 돌린다. AI는 '색'이 아니라 '형태'로 주제를 따내므로,
+//     배경색과 전경(옷 등) 색이 비슷해도 깨끗이 분리한다(색기반의 치명적 약점 보완).
+//  ② AI가 의미 있게 못 잡았을 때만(거의 다 남거나 다 사라짐 = 비대상)
+//     색기반(테두리 단색 분석)으로 폴백. 사용자에게 분기 선택을 묻지 않는다(자동).
+async function bgRemove(){
+  if(!bgState.img){ toast(t('pickFirst')); return; }
+  $('cutBtn').disabled=true;
+  const start=performance.now();
+  try{
+    const fracOf=(a)=>{ let k=0; for(let i=0;i<a.length;i++) if(a[i]>128)k++; return k/a.length; };
+    const inRange=(f)=> f>0.02 && f<0.97;   // 배경도 안 빠지거나 전경까지 다 빠진 건 제외
+
+    // ── A) AI 모델 결과 (형태 기반 — 배경색≈전경색인 사람·캐릭터에 강함) ──
+    let aiAlpha=null, aiFrac=-1;
+    try{
+      bgShowProgress(t('loadingEngine'), t('loadingEngineDetail'));
+      if(!bgState.engineReady){ await bgLoadEngine(); }
+      if(bgState.engineReady){
+        bgSetProgress(t('cutting'), bgState.engineProvider==='webgpu'?t('onGpu'):t('onCpu'));
+        await new Promise(r=>setTimeout(r,30));
+        const image = await RawImage.fromCanvas(bgState.rgbCanvas);
+        const { pixel_values } = await bgState.processor(image);
+        const sess = bgState.model.sessions.model;
+        const inName = sess.inputNames[0], outName = sess.outputNames[0];
+        const feeds = {}; feeds[inName] = pixel_values;
+        const out = await bgState.model(feeds);
+        let maskTensor = out[outName][0]; // [1,H,W] 또는 [H,W]
+        // 출력 종류 자동 판별: 0~1이면 확률맵 → ×255 / 범위 밖이면 logits → sigmoid.
+        const md = maskTensor.data; let mn=Infinity, mx=-Infinity;
+        for(let i=0;i<md.length;i++){ if(md[i]<mn)mn=md[i]; if(md[i]>mx)mx=md[i]; }
+        const isProb = (mn>=-0.01 && mx<=1.01);
+        let scaled = isProb ? maskTensor.mul(255) : maskTensor.sigmoid().mul(255);
+        if(isProb && (mx-mn)>0.001 && mx<1.0){
+          const k=255/(mx-mn); const dd=scaled.data;
+          for(let i=0;i<dd.length;i++) dd[i]=Math.max(0,Math.min(255,(md[i]-mn)*k));
+        }
+        const maskImg = await RawImage.fromTensor(scaled.to('uint8')).resize(bgState.imgW, bgState.imgH);
+        aiAlpha = bgExtractAlpha(maskImg, bgState.imgW, bgState.imgH);
+        aiFrac = fracOf(aiAlpha);
+      }
+    }catch(aiErr){
+      console.warn('[bg] AI inference failed:', aiErr && (aiErr.message||aiErr));
+    }
+
+    // ── B) 색기반 결과 (테두리가 단색/하늘일 때만 의미 있음) ──
+    let colorAlpha=null, colorFrac=-1;
+    const an = bgAnalyzeBorder();
+    if(an.branch==='object' || an.branch==='sky'){
+      bgSetProgress(t('cutting'), t('autoColorDetail'));
+      await new Promise(r=>setTimeout(r,20));
+      bgAutoColorRemove(an.branch);                  // bgState.alpha에 색기반 결과
+      colorAlpha = Uint8ClampedArray.from(bgState.alpha);
+      colorFrac = fracOf(colorAlpha);
+    }
+
+    // ── C) 둘 중 더 잘 된 결과를 자동 선택 ("두 개 같이") ──
+    //   단색·하늘 배경에선 둘 다 배경은 빠지므로, 전경을 더 잘 보존한(유효범위 내 keptFrac이
+    //   더 큰) 쪽이 낫다.
+    //   · 만화 여러 캐릭터 → AI(사람모델)가 못 잡아 거의 다 빠짐(작은 aiFrac) → 색기반 채택
+    //   · 배경색≈옷색 캐릭터 → 색기반이 옷을 먹어 작아짐(작은 colorFrac) → AI 채택
+    //   복잡 배경(색기반 무의미)은 AI만 사용.
+    const aiUsable  = aiAlpha   && inRange(aiFrac);
+    const colUsable = colorAlpha && inRange(colorFrac);
+    if(aiUsable && colUsable){
+      bgState.alpha = (colorFrac > aiFrac + 0.03) ? colorAlpha : aiAlpha;
+    } else if(aiUsable){
+      bgState.alpha = aiAlpha;
+    } else if(colUsable){
+      bgState.alpha = colorAlpha;
+    } else {
+      // 둘 다 애매 → 그나마 전경을 남긴 쪽. 둘 다 없으면 색기반(배경 빼기) 강제.
+      if(aiAlpha && aiFrac>=colorFrac) bgState.alpha = aiAlpha;
+      else if(colorAlpha) bgState.alpha = colorAlpha;
+      else bgAutoColorRemove('object');
+    }
+
+    // ── 마무리 (빈약하면 수동 유도) ──
+    let kept=0; const A=bgState.alpha, NT=A.length;
+    for(let i=0;i<NT;i++) if(A[i]>128)kept++;
+    const keptFrac=kept/NT;
+    bgState.cut = true;
+    bgState.history=[]; bgState.hpos=-1; bgPushHistory();
+    bgComposite();
+    const sec=((performance.now()-start)/1000).toFixed(1);
+    bgHideProgress();
+    bgSetBlocksEnabled(true);
+    bgSetStatus('statusCut');
+    if(keptFrac>0.985 || keptFrac<0.015) toast(t('autoHardHint'));
+    else toast(t('cutDone')+' · '+sec+t('secUnit'));
+  }catch(err){
+    console.error('[bg] remove failed', err);
+    bgShowError(err.message||t('genericErr'), true);
+  }finally{
+    $('cutBtn').disabled=false;
+  }
+}
+
+// 색 기반 후처리 보조 — 테두리가 균일 단색일 때만, 모델이 남긴 같은 색 배경 잔여를 정리.
+// 전경은 건드리지 않도록 테두리(현재 alpha>0인 배경부)에서 연결된 배경색만 flood 제거.
+function bgPostCleanSolidBg(){
+  const W=bgState.imgW, H=bgState.imgH;
+  const an=bgAnalyzeBorder();
+  if(an.branch!=='object') return; // 4면 균일 단색 배경일 때만 (풍경·복잡 배경은 건드리지 않음)
+  const band=an.band;
+  const seeds=[[band,band],[W-1-band,band],[band,H-1-band],[W-1-band,H-1-band],
+               [W>>1,band],[W>>1,H-1-band],[band,H>>1],[W-1-band,H>>1]];
+  // 현재 alpha 위에서, 테두리 시드 색과 연결된 배경만 추가 제거 (base=현재 alpha, 누적 보존)
+  let base=Uint8ClampedArray.from(bgState.alpha);
+  for(const [sx,sy] of seeds){
+    bgWandFloodFromBase(sx, sy, an.objTol, 'flood', base, 0);
+    base=Uint8ClampedArray.from(bgState.alpha);
+  }
+}
+
+// 결과 화면의 [배경 빼기]/[하늘 빼기] 수동 토글. 색 기반 분기일 때만 보인다.
+function bgShowBranchToggle(branch){
+  const box=$('branchToggle'), hint=$('branchHint'); if(!box) return;
+  const show=(branch==='object'||branch==='sky');
+  box.style.display = show ? 'flex' : 'none';
+  if(hint) hint.style.display = show ? 'block' : 'none';
+  if(!show) return;
+  $('branchObj').classList.toggle('active', branch==='object');
+  $('branchSky').classList.toggle('active', branch==='sky');
+}
+// 수동 토글 클릭 — 같은 색기반 경로를 강제 분기로 재실행.
+function bgSwitchBranch(branch){
+  if(!bgState.img) return;
+  bgAutoColorRemove(branch);
+  bgState.cut=true;
+  bgPushHistory();
+  bgComposite();
+  bgShowBranchToggle(branch);
+  toast(branch==='sky'?t('autoSkyDone'):t('autoObjDone'));
+}
+
+// RawImage(마스크) → 원본 해상도 alpha (Uint8ClampedArray W*H)
+// maskImg는 이미 .resize(W,H)로 원본 크기 + 채널 1. 크기가 맞으면 그대로 복사,
+// 혹시 다르면 캔버스로 고품질 리샘플(안전망).
+function bgExtractAlpha(raw, W, H){
+  const rw=raw.width, rh=raw.height, ch=raw.channels||1, data=raw.data;
+  if(rw===W && rh===H){
+    const alpha=new Uint8ClampedArray(W*H);
+    for(let i=0;i<W*H;i++) alpha[i]= (ch>=4) ? data[i*ch+3] : data[i*ch];
+    return alpha;
+  }
+  const tmp=document.createElement('canvas'); tmp.width=rw; tmp.height=rh;
+  const tctx=tmp.getContext('2d');
+  const id=tctx.createImageData(rw,rh);
+  for(let i=0;i<rw*rh;i++){
+    const a = (ch>=4) ? data[i*ch+3] : data[i*ch];
+    id.data[i*4]=255; id.data[i*4+1]=255; id.data[i*4+2]=255; id.data[i*4+3]=a;
+  }
+  tctx.putImageData(id,0,0);
+  const full=document.createElement('canvas'); full.width=W; full.height=H;
+  const fctx=full.getContext('2d');
+  fctx.imageSmoothingEnabled=true; fctx.imageSmoothingQuality='high';
+  fctx.drawImage(tmp,0,0,W,H);
+  const fd=fctx.getImageData(0,0,W,H).data;
+  const alpha=new Uint8ClampedArray(W*H);
+  for(let i=0;i<W*H;i++) alpha[i]=fd[i*4+3];
+  return alpha;
+}
+
+// ══════════════════════════════════════════════════════════════════════
+//  3) 보정 브러시 (alpha 직접 수정) — keep=전경 살리기 / cut=배경 빼기
+//     ★ 원본 해상도 alpha 기준으로 동작
+// ══════════════════════════════════════════════════════════════════════
+function bgPaintAlpha(x1,y1,x2,y2){
+  const cv=$('maskCanvas'), r=cv.getBoundingClientRect();
+  const rad=Math.max(1,(bgState.brushSize*(cv.width/r.width))/2); // 화면→원본 좌표 스케일
+  const val=(bgState.tool==='keep')?255:0;
+  const W=bgState.imgW,H=bgState.imgH,a=bgState.alpha;
+  const steps=Math.max(1,Math.ceil(Math.hypot(x2-x1,y2-y1)/(rad/2)));
+  const r2=rad*rad;
+  for(let s=0;s<=steps;s++){
+    const cx=x1+(x2-x1)*s/steps, cy=y1+(y2-y1)*s/steps;
+    const ix0=Math.max(0,Math.floor(cx-rad)), ix1=Math.min(W-1,Math.ceil(cx+rad));
+    const iy0=Math.max(0,Math.floor(cy-rad)), iy1=Math.min(H-1,Math.ceil(cy+rad));
+    for(let y=iy0;y<=iy1;y++)for(let x=ix0;x<=ix1;x++){
+      const dx=x-cx, dy=y-cy;
+      if(dx*dx+dy*dy<=r2) a[y*W+x]=val;
+    }
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════
+//  4) 전경 합성 → 미리보기(체커보드 위 전경) · 다운로드 캔버스
+//     ★ 항상 원본 해상도. 합성(색/이미지 배경) 기능은 없음 — 투명만.
+// ══════════════════════════════════════════════════════════════════════
+// 페더(가장자리 블러) 적용된 알파를 반환. feather=0이면 원본 alpha 그대로(경계 sharp 유지).
+// 작업용 alpha는 항상 sharp하게 보존하고, 페더는 표시·출력 시점에만 얹는다.
+function bgEffectiveAlpha(){
+  const a=bgState.alpha, W=bgState.imgW, H=bgState.imgH;
+  if(!a) return null;
+  const f=bgState.feather|0;
+  if(f<=0) return a;
+  // 알파를 캔버스에 올려 CSS blur 필터로 가장자리만 부드럽게
+  const ac=document.createElement('canvas'); ac.width=W; ac.height=H;
+  const actx=ac.getContext('2d');
+  const id=actx.createImageData(W,H);
+  for(let i=0;i<W*H;i++){ id.data[i*4]=255; id.data[i*4+1]=255; id.data[i*4+2]=255; id.data[i*4+3]=a[i]; }
+  actx.putImageData(id,0,0);
+  const bc=document.createElement('canvas'); bc.width=W; bc.height=H;
+  const bctx=bc.getContext('2d');
+  bctx.filter='blur('+f+'px)';
+  bctx.drawImage(ac,0,0);
+  const bd=bctx.getImageData(0,0,W,H).data;
+  const out=new Uint8ClampedArray(W*H);
+  for(let i=0;i<W*H;i++) out[i]=bd[i*4+3];
+  return out;
+}
+// 원본 RGB × alpha = 원본 해상도 전경 RGBA 캔버스 (다운로드/미리보기 공용 소스)
+function bgBuildForeground(){
+  const W=bgState.imgW,H=bgState.imgH;
+  const fg=document.createElement('canvas'); fg.width=W; fg.height=H;
+  const fctx=fg.getContext('2d');
+  const src=bgState.rgbCanvas.getContext('2d').getImageData(0,0,W,H);
+  const out=fctx.createImageData(W,H);
+  const a=bgEffectiveAlpha();
+  for(let i=0;i<W*H;i++){
+    out.data[i*4]  =src.data[i*4];
+    out.data[i*4+1]=src.data[i*4+1];
+    out.data[i*4+2]=src.data[i*4+2];
+    out.data[i*4+3]= a ? a[i] : 255;
+  }
+  fctx.putImageData(out,0,0);
+  return fg;
+}
+// 화면 미리보기 갱신 (viewCanvas의 CSS 체커보드 위에 전경만 그림)
+function bgComposite(){
+  if(!bgState.cut) return;
+  const viewCv=$('viewCanvas'), ctx=viewCv.getContext('2d');
+  ctx.clearRect(0,0,viewCv.width,viewCv.height);
+  // 흑백 확인 모드 — 마스크를 흰색(남는 부분)/검정(빠지는 부분)으로 표시.
+  // 어느 도구(자동·색·물체·올가미·붓)로 작업했든 현재 마스크 전체 상태를 보여줌.
+  if(bgState.maskView){
+    const W=bgState.imgW, H=bgState.imgH, a=bgEffectiveAlpha();
+    const id=ctx.createImageData(W,H);
+    for(let i=0;i<W*H;i++){ const v=a?a[i]:255; id.data[i*4]=v; id.data[i*4+1]=v; id.data[i*4+2]=v; id.data[i*4+3]=255; }
+    ctx.putImageData(id,0,0);
+    return;
+  }
+  ctx.drawImage(bgBuildForeground(),0,0);
+}
+// 흑백 확인 토글
+function bgToggleMaskView(){
+  if(!bgState.img) return;
+  bgState.maskView=!bgState.maskView;
+  $('ccMask').classList.toggle('active',bgState.maskView);
+  bgComposite();
+  toast(t(bgState.maskView?'maskViewOn':'maskViewOff'));
+}
+
+// ══════════════════════════════════════════════════════════════════════
+//  자르기(크롭) — 드래그로 사각 영역 선택 → 적용 시 이미지·alpha 동일 크롭
+//  점선 박스 + 모서리 핸들은 bg_maskCanvas 오버레이에 그림.
+// ══════════════════════════════════════════════════════════════════════
+function bgSetCropMode(on){
+  bgState.cropMode=!!on;
+  bgState.cropRect=null; bgState.cropDragging=false;
+  $('ccCrop').classList.toggle('active',bgState.cropMode);
+  $('cropBar').classList.toggle('show',bgState.cropMode);
+  // 크롭 모드 진입 시 도구 선택 해제(클릭 충돌 방지) + 팬 해제
+  if(bgState.cropMode){
+    bgSetTool(null);
+    if(bgState.panMode){ bgState.panMode=false; $('ccPan').classList.remove('active'); $('stage').classList.remove('pan-mode','panning'); }
+    document.getElementById('bg_maskCanvas').style.cursor='crosshair';
+    $('cropBar').querySelector('.crop-hint').textContent=shared('cropGuide');
+    $('cropApply').textContent=shared('cropApply');
+    $('cropCancel').textContent=shared('cropCancel');
+  } else {
+    bgCropClearOverlay();
+    document.getElementById('bg_maskCanvas').style.cursor='';
+  }
+}
+function bgToggleCrop(){ if(!bgState.img) return; bgSetCropMode(!bgState.cropMode); }
+function bgCropDragStart(x,y){
+  bgState.cropDragging=true;
+  bgState.cropRect={x0:x,y0:y,x1:x,y1:y};
+  bgCropDrawOverlay();
+}
+function bgCropDragMove(x,y){
+  if(!bgState.cropRect) return;
+  bgState.cropRect.x1=x; bgState.cropRect.y1=y;
+  bgCropDrawOverlay();
+}
+function bgCropDragEnd(){ bgState.cropDragging=false; }
+// 정규화된 정수 사각형(이미지 좌표, 캔버스 범위로 클램프)
+function bgCropNormRect(){
+  const r=bgState.cropRect; if(!r) return null;
+  const W=bgState.imgW,H=bgState.imgH;
+  let x=Math.round(Math.min(r.x0,r.x1)), y=Math.round(Math.min(r.y0,r.y1));
+  let w=Math.round(Math.abs(r.x1-r.x0)), h=Math.round(Math.abs(r.y1-r.y0));
+  x=Math.max(0,Math.min(W,x)); y=Math.max(0,Math.min(H,y));
+  w=Math.min(w,W-x); h=Math.min(h,H-y);
+  return {x,y,w,h};
+}
+function bgCropDrawOverlay(){
+  const cv=$('maskCanvas'), ctx=cv.getContext('2d');
+  ctx.clearRect(0,0,cv.width,cv.height);
+  const n=bgCropNormRect(); if(!n||n.w<1||n.h<1) return;
+  // 바깥 어둡게
+  ctx.save();
+  ctx.fillStyle='rgba(20,23,31,0.45)';
+  ctx.beginPath();
+  ctx.rect(0,0,cv.width,cv.height);
+  ctx.rect(n.x,n.y,n.w,n.h);
+  ctx.fill('evenodd');
+  // 점선 테두리
+  const lw=Math.max(1.5,cv.width/600);
+  ctx.lineWidth=lw*2.4; ctx.strokeStyle='rgba(255,255,255,0.95)'; ctx.setLineDash([]); ctx.strokeRect(n.x,n.y,n.w,n.h);
+  ctx.lineWidth=lw; ctx.strokeStyle='#1d1d1f'; ctx.setLineDash([lw*5,lw*4]); ctx.strokeRect(n.x,n.y,n.w,n.h);
+  ctx.setLineDash([]);
+  // 모서리 핸들
+  const hs=Math.max(6,cv.width/90);
+  ctx.fillStyle='#ffffff'; ctx.strokeStyle='#1d1d1f'; ctx.lineWidth=lw;
+  [[n.x,n.y],[n.x+n.w,n.y],[n.x,n.y+n.h],[n.x+n.w,n.y+n.h]].forEach(([hx,hy])=>{
+    ctx.beginPath(); ctx.rect(hx-hs/2,hy-hs/2,hs,hs); ctx.fill(); ctx.stroke();
+  });
+  ctx.restore();
+}
+function bgCropClearOverlay(){
+  const cv=$('maskCanvas'); cv.getContext('2d').clearRect(0,0,cv.width,cv.height);
+}
+function bgCropApply(){
+  const n=bgCropNormRect();
+  if(!n || n.w<4 || n.h<4){ toast(shared('cropTiny')); return; }
+  const W=bgState.imgW,H=bgState.imgH;
+  // 이미지(rgbCanvas) 크롭
+  const rc=document.createElement('canvas'); rc.width=n.w; rc.height=n.h;
+  rc.getContext('2d').drawImage(bgState.rgbCanvas, n.x,n.y,n.w,n.h, 0,0,n.w,n.h);
+  // alpha 크롭(전경 마스크 — 행 단위 복사)
+  const oldA=bgState.alpha, newA=new Uint8ClampedArray(n.w*n.h);
+  for(let yy=0; yy<n.h; yy++){
+    const srcOff=((n.y+yy)*W + n.x);
+    const dstOff=yy*n.w;
+    for(let xx=0; xx<n.w; xx++){ newA[dstOff+xx]=oldA[srcOff+xx]; }
+  }
+  // 상태 갱신 + 캔버스 재구성
+  bgState.rgbCanvas=rc;
+  bgState.imgW=n.w; bgState.imgH=n.h;
+  bgState.alpha=newA; bgState.alphaBase=null; bgState.feather=0;
+  if($('feather')){ $('feather').value=0; $('featherVal').textContent='0 px'; }
+  bgInvalidateWandSession();
+  // SAM 임베딩은 크기 바뀌어 무효
+  bgState.samEmbeddings=null; bgState.samImageInputs=null; bgState.samPicked=null;
+  if($('samCutBtn')) $('samCutBtn').disabled=true;
+  if($('samKeepBtn')) $('samKeepBtn').disabled=true;
+  bgState.history=[]; bgState.hpos=-1;
+  bgSetCropMode(false);
+  bgSetupCanvas();   // viewCanvas/maskCanvas를 새 크기로
+  bgPushHistory();
+  bgComposite();
+  $('fileMeta').textContent = `${bgState.fileName} · ${n.w}×${n.h}`;
+  toast(shared('cropDone'));
+}
+// 전경(alpha>0) 바운딩박스로 캔버스를 트림 — 여백 자동 제거. 전경 없으면 null.
+function bgTrimTransparent(srcCv){
+  const W=srcCv.width,H=srcCv.height;
+  const d=srcCv.getContext('2d').getImageData(0,0,W,H).data;
+  let minX=W,minY=H,maxX=-1,maxY=-1;
+  for(let y=0;y<H;y++){
+    for(let x=0;x<W;x++){
+      if(d[(y*W+x)*4+3] > 8){ // alpha 임계
+        if(x<minX)minX=x; if(x>maxX)maxX=x; if(y<minY)minY=y; if(y>maxY)maxY=y;
+      }
+    }
+  }
+  if(maxX<minX || maxY<minY) return null; // 전경 없음
+  const w=maxX-minX+1, h=maxY-minY+1;
+  const out=document.createElement('canvas'); out.width=w; out.height=h;
+  out.getContext('2d').drawImage(srcCv, minX,minY,w,h, 0,0,w,h);
+  return out;
+}
+
+// ══════════════════════════════════════════════════════════════════════
+//  5) 투명 PNG 다운로드 — 원본 해상도 RGBA, 알파 채널 포함
+// ══════════════════════════════════════════════════════════════════════
+function bgBaseName(){ return (bgState.fileName||'image').replace(/\.[^.]+$/,''); }
+function bgDownloadPng(){
+  if(!bgState.cut){ toast(t('needCut')); return; }
+  let cv=bgBuildForeground(); // W×H, alpha 포함
+  if(bgState.cropTrim){ cv=bgTrimTransparent(cv) || cv; } // 여백 자동 제거(전경 바운딩박스로)
+  cv.toBlob(blob=>{
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a'); a.href=url; a.download=bgBaseName()+'_cutout.png'; a.click();
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
+  },'image/png');
+  toast(t('savedPng'));
+}
+
+// ── SVG 벡터 다운로드 (ImageTracer.js — 로고·심볼용) ──
+// ImageTracer는 외부 스크립트라 SVG 요청 시 lazy load. window.ImageTracer에 노출됨.
+let bgTracerLoading=null;
+function bgLoadTracer(){
+  if(window.ImageTracer) return Promise.resolve(window.ImageTracer);
+  if(bgTracerLoading) return bgTracerLoading;
+  bgTracerLoading=new Promise((resolve,reject)=>{
+    const s=document.createElement('script');
+    s.src='https://cdn.jsdelivr.net/npm/imagetracerjs@1.2.6/imagetracer_v1.2.6.js';
+    s.onload=()=> window.ImageTracer ? resolve(window.ImageTracer) : reject(new Error('ImageTracer missing'));
+    s.onerror=()=>reject(new Error('ImageTracer load failed'));
+    document.head.appendChild(s);
+  });
+  return bgTracerLoading;
+}
+// 투명 영역이 색면으로 들어가지 않게: alpha를 임계 이진화(>=128만 전경)한 ImageData를 벡터화.
+function bgForegroundImageDataForTrace(){
+  const W=bgState.imgW,H=bgState.imgH;
+  const src=bgState.rgbCanvas.getContext('2d').getImageData(0,0,W,H);
+  const a=bgState.alpha;
+  const out=new ImageData(W,H);
+  for(let i=0;i<W*H;i++){
+    const keep = a ? a[i]>=128 : true;
+    out.data[i*4]  = src.data[i*4];
+    out.data[i*4+1]= src.data[i*4+1];
+    out.data[i*4+2]= src.data[i*4+2];
+    out.data[i*4+3]= keep ? 255 : 0; // 배경=완전 투명 → 추적 후 제거 대상
+  }
+  return out;
+}
+async function bgDownloadSvg(){
+  if(!bgState.cut){ toast(t('needCut')); return; }
+  $('dlSvgBtn').disabled=true;
+  bgShowProgress(t('tracing'), t('tracingDetail'));
+  try{
+    const ImageTracer=await bgLoadTracer().catch(()=>{ throw new Error(t('svgEngineErr')); });
+    await new Promise(r=>setTimeout(r,30));
+    const idata=bgForegroundImageDataForTrace();
+    // 로고·심볼 기준 옵션: 색 수 적게, 노이즈 억제, 작은 패스 제거
+    const options={
+      numberofcolors:16, mincolorratio:0, colorquantcycles:3,
+      pathomit:8, ltres:1, qtres:1, rightangleenhance:true,
+      strokewidth:0, linefilter:true, scale:1, roundcoords:1,
+      viewbox:true, desc:false
+    };
+    let svg=ImageTracer.imagedataToSVG(idata, options);
+    svg=bgStripTransparentPaths(svg);
+    const blob=new Blob([svg],{type:'image/svg+xml'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a'); a.href=url; a.download=bgBaseName()+'_cutout.svg'; a.click();
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
+    bgHideProgress();
+    toast(t('savedSvg'));
+  }catch(err){
+    console.error('[bg] svg failed', err);
+    bgShowError(err.message||t('genericErr'), false);
+  }finally{
+    $('dlSvgBtn').disabled=false;
+  }
+}
+// 투명(alpha=0) 영역에서 나온 패스 = 배경 색면. fill의 alpha가 0인 path를 제거.
+function bgStripTransparentPaths(svg){
+  // ImageTracer 출력: fill="rgb(r,g,b)" fill-opacity="a" 형태. opacity 0 또는 rgba(..,0) 제거.
+  return svg.replace(/<path\b[^>]*?>/g, (tag)=>{
+    const fo=tag.match(/fill-opacity="([0-9.]+)"/);
+    if(fo && parseFloat(fo[1])===0) return '';
+    const rgba=tag.match(/fill="rgba?\([^)]*?,\s*0(?:\.0+)?\)"/);
+    if(rgba) return '';
+    return tag;
+  });
+}
+
+// ══════════════════════════════════════════════════════════════════════
+//  파일 로드 / 캔버스 셋업
+// ══════════════════════════════════════════════════════════════════════
+function bgOnPickFile(e){ const f=e.target.files[0]; if(f) bgLoadImageFile(f); e.target.value=''; }
+function bgLoadImageFile(file){
+  if(!file.type.startsWith('image/')){ toast(t('onlyImage')); return; }
+  bgState.fileName = file.name;
+  const url = URL.createObjectURL(file);
+  const img = new Image();
+  img.onload = ()=>{
+    bgSetImage(img, file.name);
+    URL.revokeObjectURL(url);
+  };
+  img.onerror=()=>{ URL.revokeObjectURL(url); toast(t('cantOpen')); };
+  img.src=url;
+}
+function bgSetImage(img, name){
+  bgState.fileName=name||bgState.fileName||'image.png';
+  bgState.img=img; bgState.imgW=img.naturalWidth; bgState.imgH=img.naturalHeight;
+  const rc=document.createElement('canvas'); rc.width=img.naturalWidth; rc.height=img.naturalHeight;
+  rc.getContext('2d').drawImage(img,0,0);
+  bgState.rgbCanvas=rc;
+  // ★ 순서 강제 금지: 이미지 로드 즉시 alpha 초기화(전부 전경=255) + cut=true.
+  //   → 자동을 안 거쳐도 매직완드·브러시·피사체 선택부터 바로 시작 가능.
+  bgState.alpha=new Uint8ClampedArray(img.naturalWidth*img.naturalHeight).fill(255);
+  bgState.alphaBase=null; bgState.feather=0;
+  bgState.cut=true; bgState.history=[]; bgState.hpos=-1;
+  // SAM 상태 초기화 (새 이미지)
+  bgState.samEmbeddings=null; bgState.samImageInputs=null; bgState.samPicked=null;
+  // 자동 분기 토글 숨김 (새 이미지)
+  bgState.autoBranch=null; bgShowBranchToggle(null);
+  bgSetupCanvas();
+  bgPushHistory();
+  bgComposite();
+  $('fileMeta').textContent = `${bgState.fileName} · ${img.naturalWidth}×${img.naturalHeight}`;
+  bgSetBlocksEnabled(true);   // 모든 도구 즉시 활성화(클릭 가능) — 자동·수동 둘 다
+  bgSetTool(null);            // 초기엔 아무 도구도 '선택'(체크 ✓) 안 됨 — 사용자가 누른 도구만 선택됨
+  if($('featherVal')){ $('feather').value=0; $('featherVal').textContent='0 px'; }
+  bgSetStatus('statusReady');
+}
+function bgSetBlocksEnabled(on){
+  $('autoBlock').classList.toggle('disabled',!on);
+  $('manualBlock').classList.toggle('disabled',!on);
+  $('dlBlock').classList.toggle('disabled',!on);
+  const rb=$('ccReset'); if(rb) rb.disabled=!on;
+}
+function bgFitCanvas(){
+  const area=$('stageView'), pad=28;
+  const maxW=area.clientWidth-pad*2, maxH=area.clientHeight-pad*2;
+  const scale=Math.min(1,maxW/bgState.imgW,maxH/bgState.imgH);
+  const dw=Math.round(bgState.imgW*scale), dh=Math.round(bgState.imgH*scale);
+  ['viewCanvas','maskCanvas'].forEach(id=>{ const c=$(id); c.style.width=dw+'px'; c.style.height=dh+'px'; });
+  const wrap=$('canvasWrap'); wrap.style.width=dw+'px'; wrap.style.height=dh+'px';
+}
+function bgSetupCanvas(){
+  const viewCv=$('viewCanvas'), maskCv=$('maskCanvas');
+  viewCv.width=bgState.imgW; viewCv.height=bgState.imgH;
+  maskCv.width=bgState.imgW; maskCv.height=bgState.imgH;
+  maskCv.getContext('2d').clearRect(0,0,maskCv.width,maskCv.height);
+  viewCv.getContext('2d').drawImage(bgState.rgbCanvas,0,0); // 제거 전엔 원본 미리보기
+  $('dropzone').style.display='none';
+  $('canvasWrap').style.display='block';
+  bgFitCanvas();
+  bgAttachDraw();
+  bgState.zoom=1; bgState.panX=0; bgState.panY=0; bgState.panMode=false;
+  $('ccPan').classList.remove('active');
+  $('stage').classList.remove('pan-mode','panning');
+  bgApplyView();
+  $('canvasControls').classList.remove('hidden');
+  bgUpdateUndoButtons();
+}
+window.addEventListener('resize',()=>{ if(bgState.img){ bgFitCanvas(); bgApplyView(); } });
+
+// ── 줌·팬·핀치 ──
+function bgApplyView(){
+  const wrap=$('canvasWrap');
+  wrap.style.transform=`translate(${bgState.panX}px,${bgState.panY}px) scale(${bgState.zoom})`;
+  const z=$('ccZoom'); if(z) z.textContent=Math.round(bgState.zoom*100)+'%';
+}
+function bgZoomBy(f){
+  if(!bgState.img) return;
+  bgState.zoom=Math.max(1,Math.min(8,bgState.zoom*f));
+  if(bgState.zoom===1){ bgState.panX=0; bgState.panY=0; }
+  bgApplyView();
+}
+function bgZoomFit(){ bgState.zoom=1; bgState.panX=0; bgState.panY=0; bgApplyView(); }
+function bgTogglePan(){
+  if(!bgState.img) return;
+  bgState.panMode=!bgState.panMode;
+  $('ccPan').classList.toggle('active',bgState.panMode);
+  $('stage').classList.toggle('pan-mode',bgState.panMode);
+  // 팬 켜짐 → 인라인 커서 비워 CSS grab 양보 / 팬 꺼짐 → 도구 커서 복원
+  applyToolCursor('bg_maskCanvas', bgState.tool, {panMode:bgState.panMode, brushPx:bgState.brushSize});
+  toast(bgState.panMode?t('panOn'):t('panOff'));
+}
+function bgStartPan(ev){ bgState.panning=true; bgState.panSX=ev.clientX-bgState.panX; bgState.panSY=ev.clientY-bgState.panY; $('stage').classList.add('panning'); }
+function bgMovePan(ev){ if(!bgState.panning)return; bgState.panX=ev.clientX-bgState.panSX; bgState.panY=ev.clientY-bgState.panSY; bgApplyView(); }
+function bgEndPan(){ if(!bgState.panning)return; bgState.panning=false; $('stage').classList.remove('panning'); }
+const bgPinchDist=(ts)=>Math.hypot(ts[0].clientX-ts[1].clientX,ts[0].clientY-ts[1].clientY);
+const bgPinchMid=(ts)=>({x:(ts[0].clientX+ts[1].clientX)/2,y:(ts[0].clientY+ts[1].clientY)/2});
+function bgStartPinch(e){ bgState.pinching=true; bgState.pinchD=bgPinchDist(e.touches)||1; bgState.pinchM=bgPinchMid(e.touches); bgState.pinchZ=bgState.zoom; bgState.pinchPX=bgState.panX; bgState.pinchPY=bgState.panY; }
+function bgMovePinch(e){
+  if(!bgState.pinching)return;
+  const d=bgPinchDist(e.touches), m=bgPinchMid(e.touches);
+  bgState.zoom=Math.max(1,Math.min(8,bgState.pinchZ*(d/bgState.pinchD)));
+  bgState.panX=bgState.pinchPX+(m.x-bgState.pinchM.x);
+  bgState.panY=bgState.pinchPY+(m.y-bgState.pinchM.y);
+  if(bgState.zoom===1){ bgState.panX=0; bgState.panY=0; }
+  bgApplyView();
+}
+$('stage').addEventListener('wheel',e=>{ if(!bgState.img) return; e.preventDefault(); bgZoomBy(e.deltaY<0?1.12:1/1.12); },{passive:false});
+
+// ── 브러시 입력 ──
+function bgAttachDraw(){
+  const cv=$('maskCanvas');
+  cv.onmousedown=e=>{ if(bgState.panMode) bgStartPan(e); else bgDrawStart(e); };
+  cv.onmousemove=e=>{ if(bgState.panMode) bgMovePan(e); else bgDrawMove(e); };
+  cv.onmouseup=e=>{ if(bgState.panMode) bgEndPan(); else bgDrawEnd(); };
+  cv.onmouseleave=e=>{ if(bgState.panMode) bgEndPan(); else bgDrawEnd(); };
+  cv.ontouchstart=e=>{
+    if(e.touches.length>=2){ e.preventDefault(); bgStartPinch(e); return; }
+    e.preventDefault(); const tp=e.touches[0];
+    if(bgState.panMode) bgStartPan({clientX:tp.clientX,clientY:tp.clientY}); else bgDrawStart({clientX:tp.clientX,clientY:tp.clientY});
+  };
+  cv.ontouchmove=e=>{
+    if(bgState.pinching || e.touches.length>=2){ e.preventDefault(); bgMovePinch(e); return; }
+    e.preventDefault(); const tp=e.touches[0];
+    if(bgState.panMode) bgMovePan({clientX:tp.clientX,clientY:tp.clientY}); else bgDrawMove({clientX:tp.clientX,clientY:tp.clientY});
+  };
+  cv.ontouchend=e=>{
+    e.preventDefault();
+    if(bgState.pinching && e.touches.length<2) bgState.pinching=false;
+    if(bgState.panMode) bgEndPan(); else bgDrawEnd();
+  };
+}
+function bgCanvasXY(ev){
+  const cv=$('maskCanvas'), r=cv.getBoundingClientRect();
+  return {x:(ev.clientX-r.left)*(cv.width/r.width), y:(ev.clientY-r.top)*(cv.height/r.height)};
+}
+function bgDrawStart(ev){
+  if(!bgState.cut){ toast(t('needCut')); return; }
+  const {x,y}=bgCanvasXY(ev);
+  if(bgState.cropMode){ bgCropDragStart(x,y); return; } // 자르기 영역 드래그 시작
+  // 클릭형 도구 (브러시 드래그 X)
+  if(bgState.tool==='wand'){ bgMagicWand(Math.round(x),Math.round(y),0); return; }       // 색 빼기
+  if(bgState.tool==='wandkeep'){ bgMagicWand(Math.round(x),Math.round(y),255); return; } // 색 살리기
+  if(bgState.tool==='sam'){ bgSamClick(Math.round(x),Math.round(y)); return; }
+  if(bgState.tool==='lasso'){ bgLassoStart(x,y); return; }     // 둘러싸기 시작
+  // 브러시형(keep·cut)만 칠하기. 도구 미선택(null) 상태면 클릭 무시 — 의도치 않은 칠 방지.
+  if(bgState.tool!=='keep' && bgState.tool!=='cut') return;
+  // 손칠로 alpha를 바꾸므로 옛 매직완드 미리보기 세션은 종료
+  bgInvalidateWandSession();
+  bgState.drawing=true; bgState.lastX=x; bgState.lastY=y; bgPaintAlpha(x,y,x,y); bgComposite();
+}
+function bgDrawMove(ev){
+  if(bgState.cropMode){ if(bgState.cropDragging){ const {x,y}=bgCanvasXY(ev); bgCropDragMove(x,y); } return; }
+  if(bgState.tool==='lasso'){ if(bgState.lassoActive){ const {x,y}=bgCanvasXY(ev); bgLassoMove(x,y); } return; }
+  if(bgState.tool==='wand'||bgState.tool==='wandkeep'||bgState.tool==='sam') return; // 클릭형은 드래그 무시
+  if(!bgState.drawing) return; const {x,y}=bgCanvasXY(ev); bgPaintAlpha(bgState.lastX,bgState.lastY,x,y); bgState.lastX=x; bgState.lastY=y; bgComposite();
+}
+function bgDrawEnd(){
+  if(bgState.cropMode){ bgCropDragEnd(); return; }
+  if(bgState.tool==='lasso'){ bgLassoEnd(); return; }
+  if(!bgState.drawing) return; bgState.drawing=false; bgPushHistory();
+}
+function bgSetTool(tl){
+  // 올가미에서 다른 도구로 떠나면 둘러싼 선택 해제
+  if(bgState.tool==='lasso' && tl!=='lasso') bgLassoClearPending();
+  bgState.tool=tl;
+  $('keepBtn').classList.toggle('active',tl==='keep');
+  $('cutToolBtn').classList.toggle('active',tl==='cut');
+  $('wandBtn').classList.toggle('active',tl==='wand');
+  if($('wandKeepBtn')) $('wandKeepBtn').classList.toggle('active',tl==='wandkeep');
+  if($('lassoBtn')) $('lassoBtn').classList.toggle('active',tl==='lasso');
+  $('samBtn').classList.toggle('active',tl==='sam');
+  if(bgState.panMode){
+    bgState.panMode=false; bgState.panning=false;
+    $('ccPan').classList.remove('active');
+    $('stage').classList.remove('pan-mode','panning');
+  }
+  applyToolCursor('bg_maskCanvas', tl, {panMode:bgState.panMode, brushPx:bgState.brushSize});
+}
+function bgOnBrushSize(v){ bgState.brushSize=parseInt(v); $('brushSizeVal').textContent=v+' px';
+  // 살리기/지우기 브러시일 때 원형 커서 크기 실시간 반영
+  if(bgState.tool==='keep'||bgState.tool==='cut') applyToolCursor('bg_maskCanvas', bgState.tool, {panMode:bgState.panMode, brushPx:bgState.brushSize});
+}
+
+// 페더 슬라이더 — 자동·매직완드·피사체선택 모든 결과에 적용. 슬라이더 0=원본 경계.
+function bgOnFeather(v){
+  bgState.feather=parseInt(v)||0;
+  $('featherVal').textContent=bgState.feather+' px';
+  bgComposite(); // 실시간 미리보기 재합성
+}
+// 전체 리셋 — 작업을 처음(이미지 막 불러온) 상태로. 엔진은 유지.
+function bgReset(){
+  if(!bgState.img) return;
+  const W=bgState.imgW, H=bgState.imgH;
+  bgState.alpha=new Uint8ClampedArray(W*H).fill(255); // 전부 전경(원본 상태)
+  bgState.cut=true;
+  bgState.feather=0; bgState.alphaBase=null;
+  bgInvalidateWandSession(); // 매직완드 미리보기 세션도 초기화
+  // SAM 임베딩·선택 완전 리셋
+  bgState.samEmbeddings=null; bgState.samImageInputs=null; bgState.samPicked=null;
+  if($('samCutBtn')) $('samCutBtn').disabled=true;
+  if($('samKeepBtn')) $('samKeepBtn').disabled=true;
+  // 올가미 둘러싼 선택도 리셋
+  bgLassoClearPending();
+  // 흑백 확인 모드 해제
+  bgState.maskView=false; if($('ccMask')) $('ccMask').classList.remove('active');
+  if($('feather')){ $('feather').value=0; $('featherVal').textContent='0 px'; }
+  // 자동 분기 토글 숨김
+  bgState.autoBranch=null; bgShowBranchToggle(null);
+  // 도구·히스토리 초기화 — 초기엔 선택(체크 ✓) 없음
+  bgSetTool(null);
+  bgState.history=[]; bgState.hpos=-1; bgPushHistory();
+  bgComposite();   // 미리보기 원본 복원
+  bgZoomFit();
+  bgSetStatus('statusReady');
+  toast(t('resetDone'));
+}
+
+// ══════════════════════════════════════════════════════════════════════
+//  색 기반 자동 배경 제거 — 테두리 색을 읽어 단색/하늘 배경을 색으로 제거.
+//  단색 배경(물건·인물 사진)·하늘 그라데이션(풍경 사진)에서는 AI 주인공 찾기보다
+//  정확하다. 매직완드 색범위 제거(bgWandFloodFromBase)와 같은 원리를 재사용한다.
+// ══════════════════════════════════════════════════════════════════════
+// 한 변의 픽셀들을 모아 대표색과 분산(평균색까지의 평균거리)을 낸다.
+function bgEdgeStats(d, W, H, side, band){
+  let n=0, sr=0,sg=0,sb=0; const px=[];
+  const at=(x,y)=>{ const i=(y*W+x)*4; px.push([d[i],d[i+1],d[i+2]]); sr+=d[i]; sg+=d[i+1]; sb+=d[i+2]; n++; };
+  const stepX=Math.max(1,(W/160)|0), stepY=Math.max(1,(H/160)|0);
+  if(side==='top')    for(let x=0;x<W;x+=stepX) for(let b=0;b<band;b++) at(x,b);
+  if(side==='bottom') for(let x=0;x<W;x+=stepX) for(let b=0;b<band;b++) at(x,H-1-b);
+  if(side==='left')   for(let y=0;y<H;y+=stepY) for(let b=0;b<band;b++) at(b,y);
+  if(side==='right')  for(let y=0;y<H;y+=stepY) for(let b=0;b<band;b++) at(W-1-b,y);
+  const m=[sr/n, sg/n, sb/n];
+  let v=0; for(const s of px){ v+=Math.sqrt((s[0]-m[0])**2+(s[1]-m[1])**2+(s[2]-m[2])**2); }
+  return { mean:m, spread:v/n };
+}
+function bgColDist(a,b){ return Math.max(Math.abs(a[0]-b[0]),Math.abs(a[1]-b[1]),Math.abs(a[2]-b[2])); }
+
+// 테두리 4면 분석 → 자동 분기 결정.
+//   'object' = 4면 다 균일+서로 비슷 → 물건·인물 (배경색 통째 제거)
+//   'sky'    = 위만 균일 → 풍경 (위 하늘만 제거)
+//   'ai'     = 애매 → AI 범용 모델로
+function bgAnalyzeBorder(){
+  const W=bgState.imgW, H=bgState.imgH;
+  const d=bgState.rgbCanvas.getContext('2d').getImageData(0,0,W,H).data;
+  const band=Math.max(2,Math.round(Math.min(W,H)*0.03));
+  const T=bgEdgeStats(d,W,H,'top',band), B=bgEdgeStats(d,W,H,'bottom',band),
+        L=bgEdgeStats(d,W,H,'left',band), R=bgEdgeStats(d,W,H,'right',band);
+  const UNI=28, SAME=38;
+  const tUni=T.spread<UNI, bUni=B.spread<UNI, lUni=L.spread<UNI, rUni=R.spread<UNI;
+  const allUni=tUni&&bUni&&lUni&&rUni;
+  const allSame=allUni && bgColDist(T.mean,B.mean)<SAME && bgColDist(T.mean,L.mean)<SAME && bgColDist(T.mean,R.mean)<SAME;
+  const skyLike=tUni && (!bUni || bgColDist(T.mean,B.mean)>=SAME);
+  let branch = allSame ? 'object' : (skyLike ? 'sky' : 'ai');
+  const objTol=Math.round(40+Math.max(T.spread,B.spread,L.spread,R.spread)*2.0);
+  const skyTol=Math.round(55+T.spread*3.0);
+  return { branch, band, T,B,L,R, objTol, skyTol };
+}
+
+// 여러 시드 색으로 색범위 제거 (bgWandFloodFromBase 반복 호출 — DRY).
+//   mode='flood' = 시드에서 연결된 배경만 / 'global' = 전체 같은 색.
+//   alpha를 255로 초기화한 뒤 각 시드를 적용한다.
+function bgColorErase(seeds, tol, mode){
+  const W=bgState.imgW, H=bgState.imgH;
+  bgState.alpha = new Uint8ClampedArray(W*H).fill(255);
+  let base=Uint8ClampedArray.from(bgState.alpha);
+  let total=0;
+  for(const [sx,sy] of seeds){
+    // base는 직전까지 제거된 상태 — 누적 제거(다른 시드가 뺀 건 유지)
+    const changed=bgWandFloodFromBase(sx, sy, tol, mode, base, 0);
+    total+=changed;
+    base=Uint8ClampedArray.from(bgState.alpha);
+  }
+  return total;
+}
+
+// 자동 분기 실행. forceBranch로 수동 토글([배경 빼기]/[하늘 빼기])도 같은 경로.
+//   반환: 실제 적용한 branch ('object'|'sky'|'ai')
+function bgAutoColorRemove(forceBranch){
+  const W=bgState.imgW, H=bgState.imgH;
+  const an=bgAnalyzeBorder();
+  const branch = forceBranch || an.branch;
+  const band=an.band;
+  if(branch==='object'){
+    const seeds=[[band,band],[W-1-band,band],[band,H-1-band],[W-1-band,H-1-band],
+                 [W>>1,band],[W>>1,H-1-band],[band,H>>1],[W-1-band,H>>1]];
+    const tol=an.objTol;
+    bgColorErase(seeds, tol, 'flood');
+    let kept=0; for(let p=0;p<W*H;p++) if(bgState.alpha[p]>128)kept++;
+    if(1-kept/(W*H) < 0.10) bgColorErase(seeds, tol, 'global'); // 거의 안 빠지면 전체 제거
+    bgState.autoBranch='object';
+    return 'object';
+  }
+  if(branch==='sky'){
+    const seeds=[[band,band],[W-1-band,band],[W>>1,band],[W>>2,band],[(W*3)>>2,band]];
+    bgColorErase(seeds, an.skyTol, 'flood');
+    bgState.autoBranch='sky';
+    return 'sky';
+  }
+  return 'ai';
+}
+
+// ══════════════════════════════════════════════════════════════════════
+//  매직완드 — 배경 색 터치 제거 (모델 불필요, 순수 캔버스 픽셀 연산)
+//  클릭 픽셀 색 기준 ±tolerance 픽셀을 alpha=0. flood(연결영역)/global(전체).
+// ══════════════════════════════════════════════════════════════════════
+// base(스냅샷)를 bgState.alpha에 깐 뒤, (cx,cy) 색 기준 tol 범위 픽셀을 target으로.
+//  target=0   → 배경 색 빼기 (그 색을 투명하게)
+//  target=255 → 색 살리기 (그 색을 전경으로 복원)
+// base를 다시 깔기 때문에 같은 클릭을 색 범위만 바꿔 반복 적용해도 누적 오류가 없다.
+function bgWandFloodFromBase(cx,cy,tol,mode,base,target){
+  const W=bgState.imgW, H=bgState.imgH;
+  const a=bgState.alpha;
+  a.set(base); // 이 클릭 직전 상태로 복원 (다른 작업 보존)
+  const tgt = (target===255) ? 255 : 0;
+  const d=bgState.rgbCanvas.getContext('2d').getImageData(0,0,W,H).data;
+  const i0=(cy*W+cx)*4, R0=d[i0], G0=d[i0+1], B0=d[i0+2];
+  const ok=i=>Math.max(Math.abs(d[i]-R0),Math.abs(d[i+1]-G0),Math.abs(d[i+2]-B0))<=tol;
+  let changed=0;
+  if(mode==='global'){
+    for(let p=0;p<W*H;p++){ if(a[p]!==tgt && ok(p*4)){ a[p]=tgt; changed++; } }
+  }else{
+    const st=[cy*W+cx], seen=new Uint8Array(W*H);
+    while(st.length){
+      const p=st.pop(); if(seen[p])continue; seen[p]=1;
+      if(!ok(p*4))continue;
+      if(a[p]!==tgt){ a[p]=tgt; changed++; }
+      const x=p%W, y=(p/W)|0;
+      if(x>0)st.push(p-1); if(x<W-1)st.push(p+1); if(y>0)st.push(p-W); if(y<H-1)st.push(p+W);
+    }
+  }
+  return changed;
+}
+// 매직완드 클릭. target=0=빼기 / 255=살리기. (도구 wand=빼기, wandkeep=살리기)
+function bgMagicWand(cx,cy,target){
+  if(!bgState.cut || !bgState.alpha) return;
+  const W=bgState.imgW, H=bgState.imgH;
+  if(cx<0||cx>=W||cy<0||cy>=H) return;
+  const tgt=(target===255)?255:0;
+  // 이 클릭 직전 상태를 세션 베이스로 저장 → 색 범위 슬라이더 실시간 미리보기의 기준.
+  const base=Uint8ClampedArray.from(bgState.alpha);
+  const changed=bgWandFloodFromBase(cx,cy,bgState.wandTol,bgState.wandMode,base,tgt);
+  bgState.wandClick={x:cx,y:cy};
+  bgState.wandBase=base;
+  bgState.wandTarget=tgt;
+  bgComposite();
+  if(changed){ bgPushHistory(); toast(tgt===255 ? t('wandKeepDone') : t('wandDone')); }
+}
+// 매직완드 세션 무효화 — 브러시·SAM·undo/redo·리셋 등 다른 작업이 alpha를 바꾸면
+// 옛 클릭 기준 미리보기가 후속 편집을 덮어쓰지 않도록 세션을 끊는다.
+function bgInvalidateWandSession(){ bgState.wandClick=null; bgState.wandBase=null; bgState.wandTarget=0; }
+// 색 범위 슬라이더 실시간 미리보기 — 마지막 클릭(빼기/살리기 동일) 기준으로 범위만 재계산.
+// commit=true면 히스토리에 1회 반영(슬라이더 놓을 때).
+function bgWandPreview(commit){
+  if(!bgState.wandClick || !bgState.wandBase) return; // 클릭 전이면 기본값만 바뀜
+  bgWandFloodFromBase(bgState.wandClick.x, bgState.wandClick.y, bgState.wandTol, bgState.wandMode, bgState.wandBase, bgState.wandTarget);
+  bgComposite();
+  if(commit) bgPushHistory();
+}
+
+// ══════════════════════════════════════════════════════════════════════
+//  올가미 (둘러싸기) — 자유 곡선으로 영역을 둘러싸 빼기/오려내기
+//  드래그 중 점 수집 → bg_maskCanvas에 점선 미리보기 → 손 떼면 닫힌 path를
+//  오프스크린에 채워 마스크 생성 → keepInside면 안=255/밖=0, 아니면 안=0.
+// ══════════════════════════════════════════════════════════════════════
+function bgLassoStart(x,y){
+  bgInvalidateWandSession();
+  bgLassoClearPending(); // 새로 둘러싸면 옛 둘러싸기는 해제
+  bgState.lassoActive=true;
+  bgState.lassoPts=[{x,y}];
+}
+function bgLassoMove(x,y){
+  if(!bgState.lassoActive) return;
+  bgState.lassoPts.push({x,y});
+  bgLassoDrawOverlay();
+}
+// 진행 중인 올가미 선을 오버레이(bg_maskCanvas)에 그린다.
+function bgLassoDrawOverlay(){
+  const cv=$('maskCanvas'), ctx=cv.getContext('2d');
+  ctx.clearRect(0,0,cv.width,cv.height);
+  const pts=bgState.lassoPts; if(!pts||pts.length<2) return;
+  ctx.save();
+  ctx.lineJoin='round'; ctx.lineCap='round';
+  // 닫힐 영역 살짝 채워 어디가 잡히는지 보이게
+  ctx.beginPath(); ctx.moveTo(pts[0].x,pts[0].y);
+  for(let i=1;i<pts.length;i++) ctx.lineTo(pts[i].x,pts[i].y);
+  ctx.closePath();
+  ctx.fillStyle='rgba(59,108,245,0.16)'; ctx.fill();
+  // 외곽 점선 (흰 바탕 + 짙은 점선 — 어떤 배경에서도 보이게)
+  const w=Math.max(2, cv.width/420);
+  ctx.lineWidth=w*2.2; ctx.strokeStyle='rgba(255,255,255,0.9)'; ctx.setLineDash([]); ctx.stroke();
+  ctx.lineWidth=w; ctx.strokeStyle='#1d1d1f'; ctx.setLineDash([w*4, w*3]); ctx.stroke();
+  ctx.restore();
+}
+// 손을 떼면 = 바로 적용하지 않고 "둘러싼 상태"로 보관 → 지우기/남기기 버튼이 켜짐.
+// (개체 클릭과 같은 흐름: 먼저 고르고, 그 다음 결정)
+function bgLassoEnd(){
+  if(!bgState.lassoActive) return;
+  bgState.lassoActive=false;
+  const pts=bgState.lassoPts; bgState.lassoPts=null;
+  if(!pts || pts.length<3){ bgLassoClearPending(); return; } // 너무 짧으면 무시
+  bgState.lassoPending=pts;
+  // 둘러싼 모양은 화면에 그대로 남겨 어디가 잡혔는지 보이게
+  bgState.lassoPts=pts; bgLassoDrawOverlay(); bgState.lassoPts=null;
+  $('lassoCutBtn').disabled=false; $('lassoAddBtn').disabled=false; $('lassoKeepBtn').disabled=false;
+  toast(t('lassoPicked'));
+}
+// 둘러싼 선택 해제 (도구 변경·리셋·새 이미지)
+function bgLassoClearPending(){
+  bgState.lassoPending=null;
+  const ov=$('maskCanvas'); if(ov && ov.width) ov.getContext('2d').clearRect(0,0,ov.width,ov.height);
+  if($('lassoCutBtn')) $('lassoCutBtn').disabled=true;
+  if($('lassoAddBtn')) $('lassoAddBtn').disabled=true;
+  if($('lassoKeepBtn')) $('lassoKeepBtn').disabled=true;
+}
+// 둘러싼 영역에 결정 적용.
+//   'cut'      = 안쪽 빼기  (안쪽만 투명, 나머지 그대로)
+//   'add'      = 안쪽 더하기 (안쪽만 되살림, 나머지 그대로)
+//   'keeponly' = 안쪽만 남기기 (안쪽 살리고 바깥 전부 투명)
+function bgLassoApply(mode){
+  const pts=bgState.lassoPending;
+  if(!pts) return;
+  const W=bgState.imgW, H=bgState.imgH;
+  // 닫힌 path를 마스크 캔버스에 채워 내부 픽셀을 1로
+  const mc=document.createElement('canvas'); mc.width=W; mc.height=H;
+  const mctx=mc.getContext('2d');
+  mctx.beginPath(); mctx.moveTo(pts[0].x,pts[0].y);
+  for(let i=1;i<pts.length;i++) mctx.lineTo(pts[i].x,pts[i].y);
+  mctx.closePath(); mctx.fillStyle='#fff'; mctx.fill();
+  const md=mctx.getImageData(0,0,W,H).data;
+  const a=bgState.alpha;
+  let changed=0;
+  for(let p=0;p<W*H;p++){
+    const inside = md[p*4+3] > 10; // 채워진 영역(알파>0)
+    let nv;
+    if(mode==='keeponly')      nv = inside ? 255 : 0;
+    else if(mode==='add')      nv = inside ? 255 : a[p];
+    else /* cut */             nv = inside ? 0   : a[p];
+    if(a[p]!==nv){ a[p]=nv; changed++; }
+  }
+  bgLassoClearPending();
+  bgComposite();
+  if(changed){
+    bgPushHistory();
+    toast(t(mode==='keeponly' ? 'lassoKeepDone' : mode==='add' ? 'lassoAddDone' : 'lassoCutDone'));
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════
+//  SAM — 물체 클릭 선택 (Xenova/slimsam-77-uniform, Apache 2.0)
+//  "물체 선택" 모드 진입 시 이미지 임베딩 1회 → 클릭마다 마스크 추론(재인코딩 X).
+//  bgState.samPicked = {mask:Uint8Array(W*H, 1=물체)}. 빼기/남기기 버튼이 alpha 반영.
+// ══════════════════════════════════════════════════════════════════════
+// 한 번만 로드 — 백그라운드 미리 받기와 사용자 클릭이 같은 promise를 공유.
+// (미리 받는 중에 클릭해도 중복 다운로드 없이 같은 로딩을 기다림)
+function bgSamEnsureEngine(){
+  if(bgState.samReady) return Promise.resolve(true);
+  if(!bgState.samEnginePromise){
+    bgState.samEnginePromise=(async()=>{
+      try{
+        const device = navigator.gpu ? 'webgpu' : 'wasm';
+        const [model, processor] = await Promise.all([
+          SamModel.from_pretrained('Xenova/slimsam-77-uniform', { dtype:'fp32', device }),
+          AutoProcessor.from_pretrained('Xenova/slimsam-77-uniform'),
+        ]);
+        bgState.samModel=model; bgState.samProcessor=processor; bgState.samReady=true;
+        return true;
+      }catch(e){
+        console.error('[bg] sam load failed', e);
+        bgState.samLastError=(e&&e.message)?e.message:String(e);
+        bgState.samEnginePromise=null; // 다음 시도에서 재로드 가능
+        return false;
+      }
+    })();
+  }
+  return bgState.samEnginePromise;
+}
+// 이미지 임베딩 1회 계산 (모드 진입 또는 첫 클릭 시)
+async function bgSamEmbed(){
+  if(bgState.samEmbeddings) return;
+  bgShowProgress(t('samLoading'), t('samEmbedding'));
+  const image = await RawImage.fromCanvas(bgState.rgbCanvas);
+  const inputs = await bgState.samProcessor(image);
+  bgState.samImageInputs = inputs;
+  bgState.samEmbeddings = await bgState.samModel.get_image_embeddings(inputs);
+}
+async function bgSamClick(cx,cy){
+  if(!bgState.cut) { toast(t('needCut')); return; }
+  try{
+    bgShowProgress(t('samLoading'), t('samLoadingDetail'));
+    if(!await bgSamEnsureEngine()){ bgHideProgress(); toast(t('samEngineErr')); return; }
+    await bgSamEmbed();
+    bgSetProgress(t('samLoading'), t('samInfer'));
+    await new Promise(r=>setTimeout(r,20));
+
+    // 원본 좌표 → 모델 reshaped 좌표로 변환은 processor가 input_points 원본 픽셀 기준으로 처리.
+    const W=bgState.imgW, H=bgState.imgH;
+    const input_points = [[[ [cx, cy] ]]]; // [batch, point_batch, n_points, 2]
+    const input_labels = [[[ 1 ]]];        // 1 = foreground point
+    const out = await bgState.samModel({
+      ...bgState.samEmbeddings,
+      input_points: bgPt(input_points,'float32'),
+      input_labels: bgPt(input_labels,'int64'),
+    });
+    // 마스크 후처리 → 원본 크기 boolean 마스크
+    const masks = await bgState.samProcessor.post_process_masks(
+      out.pred_masks,
+      bgState.samImageInputs.original_sizes,
+      bgState.samImageInputs.reshaped_input_sizes,
+    );
+    const scores = out.iou_scores.data;
+    const m = masks[0]; // Tensor [1, n, H, W] (n=후보 마스크 수, 보통 3)
+    const dims = m.dims;
+    const n = dims.length===4 ? dims[1] : dims[0];
+
+    // ★ 후보 선택 (slimsam 특성 보정):
+    //   - IoU 최고가 거의 빈 마스크일 수 있어 그대로 쓰면 안 됨.
+    //   - 마스크가 클릭점에서 살짝 어긋날 수 있어 정확 픽셀 대신 클릭 주변 반경을 검사.
+    //   1순위: 클릭 주변을 덮는 + 면적 충분한 후보 중 IoU 최고.
+    //   2순위: 클릭에서 가장 가까운(마스크 중심 거리) 유효 후보.
+    const minArea = Math.max(64, (W*H)*0.0004); // 노이즈 마스크 제외
+    const rad = Math.round(Math.max(W,H)*0.012); // 클릭 주변 검사 반경(px)
+    const cand=[];
+    let best=-1, bestScore=-1, near=-1, nearDist=Infinity;
+    for(let i=0;i<n;i++){
+      const r = bgSamMaskToArray(m, i, W, H);
+      cand.push(r);
+      if(r.count<minArea) continue;
+      // 클릭 주변 반경 내에 마스크 픽셀이 있는지
+      let covers=false;
+      for(let dy=-rad; dy<=rad && !covers; dy+=2){ const y=cy+dy; if(y<0||y>=H)continue;
+        for(let dx=-rad; dx<=rad; dx+=2){ const x=cx+dx; if(x<0||x>=W)continue; if(r.mask[y*W+x]){ covers=true; break; } } }
+      const sc = scores[i] || 0;
+      if(covers && sc>bestScore){ bestScore=sc; best=i; }
+      // 마스크 중심과 클릭 거리(폴백용)
+      const dist=Math.hypot((r.cxv-cx),(r.cyv-cy));
+      if(dist<nearDist){ nearDist=dist; near=i; }
+    }
+    const chosen = best>=0 ? best : near;
+    if(chosen<0){ bgHideProgress(); toast(t('samNone')); return; }
+    let picked = cand[chosen];
+    // ★ 보정: 폴백으로 고른 마스크가 클릭 지점을 안 덮으면 = 물체가 아니라 배경을 잡은 것.
+    //   반전해서 클릭한 물체 쪽 마스크로 바꾼다. (배경 빼기/전체 하양 사고 방지)
+    if(best<0){
+      let coversClick=false;
+      for(let dy=-rad; dy<=rad && !coversClick; dy+=2){ const y=cy+dy; if(y<0||y>=H)continue;
+        for(let dx=-rad; dx<=rad; dx+=2){ const x=cx+dx; if(x<0||x>=W)continue; if(picked.mask[y*W+x]){ coversClick=true; break; } } }
+      if(!coversClick){
+        const inv=new Uint8Array(W*H); let invCount=0;
+        for(let i=0;i<W*H;i++){ const v=picked.mask[i]?0:1; inv[i]=v; if(v)invCount++; }
+        if(invCount<minArea || invCount>=W*H-minArea){ bgHideProgress(); toast(t('samNone')); return; }
+        picked={ mask:inv };
+      }
+    }
+    bgState.samPicked = { mask:picked.mask };
+    bgSamPreview(picked.mask);
+    $('samCutBtn').disabled=false; $('samKeepBtn').disabled=false;
+    bgHideProgress();
+    toast(t('samPicked'));
+  }catch(err){
+    console.error('[bg] sam click failed', err);
+    bgHideProgress(); toast(t('samEngineErr'));
+  }
+}
+// transformers.js Tensor 생성 헬퍼 (중첩 배열 → Tensor)
+function bgPt(nested, type){
+  const flat=[]; const dims=[];
+  (function walk(a,depth){ if(Array.isArray(a)){ if(dims.length<=depth)dims[depth]=a.length; for(const v of a) walk(v,depth+1); } else flat.push(a); })(nested,0);
+  const data = type==='int64' ? BigInt64Array.from(flat.map(v=>BigInt(v))) : Float32Array.from(flat);
+  return new BGTensor(type, data, dims);
+}
+// SAM 마스크 Tensor → 원본 W*H Uint8Array (1=물체)
+function bgSamMaskToArray(maskTensor, idx, W, H){
+  // post_process_masks 결과는 [1, n, H, W] boolean. idx번째 채널 추출.
+  const t0 = maskTensor;
+  const data = t0.data;
+  const dims = t0.dims; // [1, n, H, W] 또는 [n, H, W]
+  const n = dims.length===4 ? dims[1] : dims[0];
+  const mh = dims[dims.length-2], mw = dims[dims.length-1];
+  const plane = mw*mh;
+  const off = idx*plane;
+  // 원본 크기와 다르면 리샘플
+  function centroid(mask, w, h){ let sx=0,sy=0,c=0; for(let i=0;i<w*h;i++){ if(mask[i]){ sx+=i%w; sy+=(i/w)|0; c++; } } return c?{cxv:sx/c,cyv:sy/c}:{cxv:0,cyv:0}; }
+  const src=new Uint8Array(plane); let count=0;
+  for(let i=0;i<plane;i++){ const v=data[off+i]?1:0; src[i]=v; if(v)count++; }
+  if(mw===W && mh===H){ const ct=centroid(src,W,H); return {mask:src, count, cxv:ct.cxv, cyv:ct.cyv}; }
+  // 캔버스로 리샘플
+  const tmp=document.createElement('canvas'); tmp.width=mw; tmp.height=mh;
+  const id=tmp.getContext('2d').createImageData(mw,mh);
+  for(let i=0;i<plane;i++){ const a=src[i]?255:0; id.data[i*4]=255;id.data[i*4+1]=255;id.data[i*4+2]=255;id.data[i*4+3]=a; }
+  tmp.getContext('2d').putImageData(id,0,0);
+  const full=document.createElement('canvas'); full.width=W; full.height=H;
+  const fc=full.getContext('2d'); fc.imageSmoothingEnabled=false; fc.drawImage(tmp,0,0,W,H);
+  const fd=fc.getImageData(0,0,W,H).data; const mask=new Uint8Array(W*H); count=0;
+  for(let i=0;i<W*H;i++){ const v=fd[i*4+3]>=128?1:0; mask[i]=v; if(v)count++; }
+  const ct=centroid(mask,W,H);
+  return {mask,count,cxv:ct.cxv,cyv:ct.cyv};
+}
+// 선택 물체 미리보기 (반투명 강조) — viewCanvas에 오버레이
+function bgSamPreview(mask){
+  bgComposite();
+  const ctx=$('viewCanvas').getContext('2d');
+  const W=bgState.imgW,H=bgState.imgH;
+  const ov=ctx.getImageData(0,0,W,H);
+  for(let i=0;i<W*H;i++){ if(mask[i]){ ov.data[i*4]=Math.min(255,ov.data[i*4]*0.4+59*0.6); ov.data[i*4+1]=Math.min(255,ov.data[i*4+1]*0.4+108*0.6); ov.data[i*4+2]=Math.min(255,ov.data[i*4+2]*0.4+245*0.6); if(ov.data[i*4+3]<120)ov.data[i*4+3]=120; } }
+  ctx.putImageData(ov,0,0);
+}
+function bgSamApply(keepOnly){
+  const picked=bgState.samPicked; if(!picked){ return; }
+  const a=bgState.alpha, m=picked.mask, N=bgState.imgW*bgState.imgH;
+  if(keepOnly){ for(let i=0;i<N;i++){ a[i]= m[i]?255:0; } }
+  else { for(let i=0;i<N;i++){ if(m[i]) a[i]=0; } }
+  bgState.samPicked=null; $('samCutBtn').disabled=true; $('samKeepBtn').disabled=true;
+  bgInvalidateWandSession();
+  bgComposite(); bgPushHistory();
+  toast(keepOnly?t('samKeepDone'):t('samCutDone'));
+}
+
+// ── alpha 스냅샷 undo/redo ──
+function bgPushHistory(){
+  if(!bgState.alpha) return;
+  bgState.history=bgState.history.slice(0,bgState.hpos+1);
+  if(bgState.history.length>20) bgState.history.shift();
+  bgState.history.push(Uint8ClampedArray.from(bgState.alpha));
+  bgState.hpos=bgState.history.length-1;
+  bgUpdateUndoButtons();
+}
+function bgRestoreHistory(i){
+  if(i<0||i>=bgState.history.length) return;
+  bgState.alpha=Uint8ClampedArray.from(bgState.history[i]);
+  bgInvalidateWandSession(); // undo/redo 후엔 옛 클릭 기준 미리보기 무효
+  bgComposite();
+}
+function bgUpdateUndoButtons(){
+  const u=$('ccUndo'), r=$('ccRedo');
+  if(u) u.disabled = bgState.hpos<=0;
+  if(r) r.disabled = bgState.hpos>=bgState.history.length-1;
+}
+function bgUndo(){
+  // 올가미를 그려놓은 상태면 = 되돌리기 1순위는 그 올가미 취소
+  if(bgState.lassoPending){ bgLassoClearPending(); toast(t('lassoCleared')); return; }
+  if(bgState.hpos>0){ bgState.hpos--; bgRestoreHistory(bgState.hpos); bgUpdateUndoButtons(); }
+}
+function bgRedo(){ if(bgState.hpos<bgState.history.length-1){ bgState.hpos++; bgRestoreHistory(bgState.hpos); bgUpdateUndoButtons(); } }
+
+// ── 진행/에러 오버레이 ──
+function bgShowProgress(stage,detail){
+  $('overlay').classList.add('show');
+  $('cardIcon').innerHTML='<div class="spinner"></div>';
+  $('cardStage').textContent=stage; $('cardDetail').textContent=detail||''; $('cardPct').textContent='';
+  const c=document.querySelector('#bg_progressCard .card-actions'); if(c) c.remove();
+  $('ffill').classList.add('indet');
+  $('statusMsg').textContent=stage;
+}
+function bgSetProgress(stage,detail){ $('cardStage').textContent=stage; $('cardDetail').textContent=detail||''; }
+function bgHideProgress(){ $('overlay').classList.remove('show'); $('ffill').classList.remove('indet'); }
+function bgShowError(msg,allowRetry){
+  $('overlay').classList.add('show');
+  $('cardIcon').innerHTML='<div class="err-icon">!</div>';
+  $('cardStage').textContent=t('failTitle'); $('cardDetail').textContent=msg; $('cardPct').textContent='';
+  const card=$('progressCard');
+  let acts=card.querySelector('.card-actions');
+  if(!acts){ acts=document.createElement('div'); acts.className='card-actions'; card.appendChild(acts); }
+  acts.innerHTML='';
+  const close=document.createElement('button'); close.textContent=t('close');
+  close.onclick=()=>{ $('overlay').classList.remove('show'); acts.remove(); };
+  acts.appendChild(close);
+  if(allowRetry){
+    const rt=document.createElement('button'); rt.className='primary'; rt.textContent=t('retry');
+    rt.onclick=()=>{ acts.remove(); $('overlay').classList.remove('show'); bgRemove(); };
+    acts.appendChild(rt);
+  }
+  $('ffill').classList.remove('indet');
+  $('statusMsg').textContent=t('failStatus')+msg;
+}
+
+// ── 상태표시 ──
+function bgSetStatus(key){ bgState.statusKey=key; $('statusMsg').textContent=t(key); }
+function bgRefreshStatus(){
+  if(!bgState.img) bgSetStatus('statusIdle');
+  else if(bgState.cut) bgSetStatus('statusCut');
+  else bgSetStatus('statusReady');
+}
+function toast(msg){
+  const el=$('toast'); el.textContent=msg; el.classList.add('show');
+  clearTimeout(el._h); el._h=setTimeout(()=>el.classList.remove('show'),2800);
+}
+
+// ══════════════════════════════════════════════════════════════════════
+//  이벤트 바인딩 (module 스코프 → 전역 onclick 불가, 모두 addEventListener)
+//  ★ 이식 시 이 함수만 리무버 탭 UI에 맞게 갈아끼우면 됨
+// ══════════════════════════════════════════════════════════════════════
+function bgBindEvents(){
+  $('pickBtn').addEventListener('click', ()=>$('fileInput').click());
+  $('dzBtn').addEventListener('click', ()=>$('fileInput').click());
+  $('fileInput').addEventListener('change', bgOnPickFile);
+  $('cutBtn').addEventListener('click', bgRemove);
+  // 색 기반 자동 제거 후 수동 전환 토글 (물건 ↔ 풍경)
+  if($('branchObj')) $('branchObj').addEventListener('click', ()=>bgSwitchBranch('object'));
+  if($('branchSky')) $('branchSky').addEventListener('click', ()=>bgSwitchBranch('sky'));
+
+  // 매직완드 — 색 빼기 / 색 살리기 (색 범위 슬라이더 공유)
+  $('wandBtn').addEventListener('click', ()=>{ bgSetTool('wand'); toast(t('wandOn')); });
+  if($('wandKeepBtn')) $('wandKeepBtn').addEventListener('click', ()=>{ bgSetTool('wandkeep'); toast(t('wandKeepOn')); });
+  // 색 범위 슬라이더: 드래그(input) = 마지막 클릭 기준 실시간 미리보기 / 놓을 때(change) = 1회 히스토리 반영
+  $('wandTol').addEventListener('input', e=>{ bgState.wandTol=parseInt(e.target.value); $('wandTolVal').textContent=e.target.value; bgWandPreview(false); });
+  $('wandTol').addEventListener('change', ()=>{ bgWandPreview(true); });
+  // 모드 전환 시에도 미리보기 갱신(클릭 후라면)
+  $('wandFlood').addEventListener('click', ()=>{ bgState.wandMode='flood'; $('wandFlood').classList.add('active'); $('wandGlobal').classList.remove('active'); bgWandPreview(true); });
+  $('wandGlobal').addEventListener('click', ()=>{ bgState.wandMode='global'; $('wandGlobal').classList.add('active'); $('wandFlood').classList.remove('active'); bgWandPreview(true); });
+
+  // SAM 물체 선택
+  $('samBtn').addEventListener('click', ()=>{ bgSetTool('sam'); toast(t('samOn')); });
+  $('samCutBtn').addEventListener('click', ()=>bgSamApply(false));
+  $('samKeepBtn').addEventListener('click', ()=>bgSamApply(true));
+
+  // 올가미(둘러싸기) — 먼저 둘러싸고, 그 다음 빼기/더하기/남기기 결정
+  $('lassoBtn').addEventListener('click', ()=>{ bgSetTool('lasso'); toast(t('lassoOn')); });
+  $('lassoCutBtn').addEventListener('click', ()=>bgLassoApply('cut'));
+  $('lassoAddBtn').addEventListener('click', ()=>bgLassoApply('add'));
+  $('lassoKeepBtn').addEventListener('click', ()=>bgLassoApply('keeponly'));
+
+  $('keepBtn').addEventListener('click', ()=>bgSetTool('keep'));
+  $('cutToolBtn').addEventListener('click', ()=>bgSetTool('cut'));
+  $('undoBtn').addEventListener('click', bgUndo);
+  $('redoBtn').addEventListener('click', bgRedo);
+  $('brushSize').addEventListener('input', e=>bgOnBrushSize(e.target.value));
+
+  // ★ 페더 슬라이더 (자동·매직완드·SAM 결과 모두에 적용)
+  $('feather').addEventListener('input', e=>bgOnFeather(e.target.value));
+
+  $('dlPngBtn').addEventListener('click', bgDownloadPng);
+  $('dlSvgBtn').addEventListener('click', bgDownloadSvg);
+
+  $('ccUndo').addEventListener('click', bgUndo);
+  $('ccRedo').addEventListener('click', bgRedo);
+  $('ccZoomOut').addEventListener('click', ()=>bgZoomBy(1/1.3));
+  $('ccZoomIn').addEventListener('click', ()=>bgZoomBy(1.3));
+  $('ccFit').addEventListener('click', bgZoomFit);
+  $('ccPan').addEventListener('click', bgTogglePan);
+  $('ccMask').addEventListener('click', bgToggleMaskView);   // ◧ 흑백 확인
+  $('ccReset').addEventListener('click', ()=>window.confirmReset('bg'));   // ★ 리셋 — 확인 팝업 먼저
+  // 자르기(크롭)
+  $('ccCrop').addEventListener('click', bgToggleCrop);
+  $('cropApply').addEventListener('click', bgCropApply);
+  $('cropCancel').addEventListener('click', ()=>bgSetCropMode(false));
+  if($('trimChk')) $('trimChk').addEventListener('change', e=>{ bgState.cropTrim=e.target.checked; });
+
+  // 드래그앤드롭
+  const dz=$('dropzone');
+  ['dragenter','dragover'].forEach(ev=>$('stage').addEventListener(ev,e=>{e.preventDefault();dz.classList.add('hover');}));
+  ['dragleave','drop'].forEach(ev=>$('stage').addEventListener(ev,e=>{e.preventDefault();dz.classList.remove('hover');}));
+  $('stage').addEventListener('drop',e=>{ const f=e.dataTransfer.files[0]; if(f) bgLoadImageFile(f); });
+
+  // 키보드
+  document.addEventListener('keydown',e=>{
+    if(!bgState.img) return;
+    // Esc = 그려놓은 올가미 취소
+    if(e.key==='Escape' && bgState.lassoPending){ bgLassoClearPending(); toast(t('lassoCleared')); return; }
+    if(e.metaKey||e.ctrlKey){
+      if(e.key==='z'&&!e.shiftKey){e.preventDefault();bgUndo();}
+      if((e.key==='z'&&e.shiftKey)||e.key==='y'){e.preventDefault();bgRedo();}
+    }
+    if(bgState.cut){
+      if(e.key==='b')bgSetTool('keep'); if(e.key==='e')bgSetTool('cut');
+      if(e.key==='['){$('brushSize').value=Math.max(6,bgState.brushSize-6);bgOnBrushSize($('brushSize').value);}
+      if(e.key===']'){$('brushSize').value=Math.min(200,bgState.brushSize+6);bgOnBrushSize($('brushSize').value);}
+    }
+  });
+}
+
+// ── PWA·설치·서비스워커: 통합 호스트(워터마크 스크립트)가 담당 ──
+
+// ══════════════════════════════════════════════════════════════════════
+//  검증·디버깅 핸들 (Claude Preview / 콘솔에서 호출)
+// ══════════════════════════════════════════════════════════════════════
+window.BGCUT = {
+  state:bgState, removeBackground:bgRemove, loadEngine:bgLoadEngine, downloadPng:bgDownloadPng, downloadSvg:bgDownloadSvg,
+  // SVG 문자열을 직접 반환(검증용 — 다운로드 없이 패스/배경면 확인)
+  buildSvg:async (opts)=>{
+    if(!bgState.cut) return null;
+    const ImageTracer=await bgLoadTracer();
+    const o=Object.assign({numberofcolors:16,pathomit:8,ltres:1,qtres:1,strokewidth:0,linefilter:true,roundcoords:1,viewbox:true,desc:false}, opts||{});
+    let svg=ImageTracer.imagedataToSVG(bgForegroundImageDataForTrace(), o);
+    return bgStripTransparentPaths(svg);
+  },
+  // 외부 URL/dataURL을 파일 선택 없이 로드(검증용)
+  loadImageURL:(url,name)=> new Promise((resolve,reject)=>{
+    const img=new Image(); img.crossOrigin='anonymous';
+    img.onload=()=>{ bgSetImage(img,name||'test.png'); resolve({w:img.naturalWidth,h:img.naturalHeight}); };
+    img.onerror=(e)=>reject(e); img.src=url;
+  }),
+  // 현재 전경(투명 PNG) dataURL — 검증에서 알파/크기 확인용
+  cutoutDataURL:()=> bgState.cut ? bgBuildForeground().toDataURL('image/png') : null,
+  // 알파 통계 (전경/배경/반투명 픽셀 비율 — 실제 배경 분리 검증용)
+  alphaStats:()=>{
+    if(!bgState.alpha) return null;
+    let fg=0,bgp=0,semi=0; const a=bgState.alpha;
+    for(let i=0;i<a.length;i++){ if(a[i]>=250)fg++; else if(a[i]<=5)bgp++; else semi++; }
+    return {W:bgState.imgW,H:bgState.imgH,total:a.length,fg,bg:bgp,semi,
+            fgPct:+(fg/a.length*100).toFixed(2),bgPct:+(bgp/a.length*100).toFixed(2)};
+  },
+  // 검증용 — 매직완드/SAM 직접 호출
+  setTool:bgSetTool,
+  magicWand:(cx,cy,target,tol,mode)=>{ if(tol!=null)bgState.wandTol=tol; if(mode)bgState.wandMode=mode; const tgt=(target===255)?255:0; bgState.tool=(tgt===255?'wandkeep':'wand'); bgMagicWand(cx,cy,tgt); },
+  // 올가미 검증용 — 캔버스 좌표 점 배열로 직접 적용 (keepInside=true면 자르기)
+  lasso:(pts,keepInside)=>{ bgState.tool=keepInside?'lassokeep':'lasso'; bgLassoStart(pts[0].x,pts[0].y); for(let i=1;i<pts.length;i++) bgLassoMove(pts[i].x,pts[i].y); bgLassoEnd(); },
+  samClick:(cx,cy)=>{ bgState.tool='sam'; return bgSamClick(cx,cy); },
+  samApply:(keepOnly)=>bgSamApply(!!keepOnly),
+  samState:()=>({ready:bgState.samReady,loading:bgState.samLoading,hasEmbed:!!bgState.samEmbeddings,picked:!!bgState.samPicked,err:bgState.samLastError,
+    pickedCount: bgState.samPicked ? bgState.samPicked.mask.reduce((s,v)=>s+v,0) : 0}),
+  // 검증용 — 페더·리셋
+  setFeather:(px)=>{ bgState.feather=px; if($('feather')){$('feather').value=px; $('featherVal').textContent=px+' px';} bgComposite(); },
+  reset:bgReset,
+  // 자르기 검증용
+  setCropMode:(on)=>bgSetCropMode(on),
+  cropSelect:(x,y,w,h)=>{ bgState.cropMode=true; bgState.cropRect={x0:x,y0:y,x1:x+w,y1:y+h}; },
+  cropApply:()=>bgCropApply(),
+  setTrim:(on)=>{ bgState.cropTrim=!!on; if($('trimChk')) $('trimChk').checked=!!on; },
+  buildForegroundCanvas:()=>bgBuildForeground(),
+  trimCanvas:(cv)=>bgTrimTransparent(cv),
+  // 현재 effectiveAlpha(페더 적용 후) 통계 — 페더가 실제 경계를 바꾸는지 검증
+  effAlphaStats:()=>{
+    const a=bgEffectiveAlpha(); if(!a) return null;
+    let fg=0,bgp=0,semi=0; for(let i=0;i<a.length;i++){ if(a[i]>=250)fg++; else if(a[i]<=5)bgp++; else semi++; }
+    return {fg,bg:bgp,semi, semiPct:+(semi/a.length*100).toFixed(2)};
+  }
+};
+
+// ── 진입 (통합) ──
+bgBindEvents();
+applyLang(LANG);
+
+// 워터마크 탭(classic 스크립트)의 자동인식이 쓸 Florence-2 클래스 노출.
+//  (autoDetect는 classic 스크립트에 있어 module import를 직접 못 봄 → window로 전달)
+window.WMAI_DEPS = { Florence2ForConditionalGeneration, AutoTokenizer, AutoProcessor, RawImage };
+// ★ 사이트 진입 직후 자동 인식 AI(Florence-2)를 조용히 미리 받기 시작.
+//   WMAI_DEPS는 위에서 이미 준비됨 → 첫 화면 렌더를 막지 않게 idle 시점에 백그라운드로.
+//   사용자가 로고 이미지에서 AI를 쓸 때 이미 받아져 있어 즉시 동작(자동 버튼 안 기다림).
+(function wmPreloadFlorence(){
+  const go = ()=>{ try{ if(window.wmEnsureFlorence) window.wmEnsureFlorence(); }catch(_){} };
+  if('requestIdleCallback' in window){ requestIdleCallback(go, { timeout:2000 }); }
+  else { setTimeout(go, 800); }
+})();
+
+// 통합 호스트(탭 코디네이터)가 호출하는 훅 노출
+window.bgApplyLang = (lang)=>{ applyLang(lang); };
+window.bgEnsureEngine = ()=>{ if(!bgState.engineReady && !bgState.engineLoading && !bgState.engineFailed) bgLoadEngine(); };
+window.bgRefitCanvas = ()=>{ if(bgState.img){ bgFitCanvas(); bgApplyView(); } };
+window.bgDoReset = ()=>bgReset(); // 확인 팝업이 [리셋] 승인 시 호출
+// ★ 엔진은 lazy: 배경 탭 진입 시 window.bgEnsureEngine()로 로드 (여기서 자동 로드 안 함)
+
 </script>
 </body>
 </html>
