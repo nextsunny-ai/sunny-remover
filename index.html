@@ -417,6 +417,31 @@ input[type=file]{display:none;}
 #bg_maskCanvas{position:absolute;top:0;left:0;cursor:crosshair;touch-action:none;}
 #bg_stage.pan-mode #bg_maskCanvas{cursor:grab;}
 #bg_stage.panning #bg_maskCanvas{cursor:grabbing;}
+
+/* ════ 업스케일 탭 전용 스타일 (2026-07-17 통합 — 프로젝트/업스케일러 원본에서 이식) ════ */
+/* 배율 선택 */
+.scale-grid {display:grid;grid-template-columns:1fr 1fr;gap:8px; }
+.scale-btn {
+  padding:14px 10px;background:var(--surface-2);border:1px solid var(--line);
+  color:var(--t-1);border-radius:var(--r-sm);
+  cursor:pointer;transition:var(--tr);
+  display:flex;flex-direction:column;align-items:center;gap:3px; }
+.scale-btn:hover {background:var(--surface-3);color:var(--t-0); }
+.scale-btn.active {background:var(--acc-soft);border-color:var(--acc-line);color:var(--acc); }
+.scale-btn .big {font-size:19px;font-weight:800;letter-spacing:-0.01em; }
+.scale-btn .sm {font-size:11.5px;color:var(--t-2);font-weight:500; }
+.scale-btn.active .sm {color:var(--acc); }
+.size-preview {
+  font-size:13px;color:var(--t-1);background:var(--surface-2);
+  border:1px solid var(--line);border-radius:var(--r-sm);
+  padding:10px 12px;display:flex;align-items:center;justify-content:center;gap:9px;
+  font-variant-numeric:tabular-nums; }
+.size-preview .arrow {color:var(--t-2); }
+.size-preview .out {color:var(--acc);font-weight:700; }
+.warn {
+  font-size:12.5px;color:#9a6700;background:#fff8e6;border:1px solid #ffe2a0;
+  border-radius:var(--r-sm);padding:9px 11px;line-height:1.55;display:none; }
+.warn.show {display:block; }
 </style>
 </head>
 <body>
@@ -441,10 +466,16 @@ input[type=file]{display:none;}
         <span class="engine-dot" id="bg_engineDot"></span>
         <span id="bg_engineLabel">Loading…</span>
       </div>
+      <!-- 업스케일 탭 엔진칩 (2026-07-17 통합) -->
+      <div class="engine-pill tab-hidden" id="up_enginePill">
+        <span class="engine-dot" id="up_engineDot"></span>
+        <span id="up_engineLabel">Loading…</span>
+      </div>
     </div>
     <nav class="tabbar" id="tabbar">
       <button class="tab-btn active" id="tabBtnWm" onclick="switchTab('wm')">🩹 <span data-i18n-shared="tabWm">워터마크 제거</span></button>
       <button class="tab-btn" id="tabBtnBg" onclick="switchTab('bg')">✂ <span data-i18n-shared="tabBg">배경 제거</span></button>
+      <button class="tab-btn" id="tabBtnUp" onclick="switchTab('up')">🔍 <span data-i18n-shared="tabUp">업스케일</span></button>
     </nav>
   </header>
 
@@ -646,7 +677,105 @@ input[type=file]{display:none;}
     <span id="bg_statusMsg" data-i18n="statusIdle">Idle</span>
   </footer>
   </div><!-- /tab-bg -->
+
+  <!-- ════════ 업스케일 패널 (2026-07-17 통합 — SUNNY UPSCALER 이식) ════════ -->
+  <div class="panel hidden" id="tab-up">
+  <div class="main">
+
+    <aside class="sidebar">
+      <div class="block">
+        <div class="block-title"><span class="num">1</span><span data-i18n="block1">Image</span></div>
+        <button class="btn btn-ghost" id="up_pickBtn" data-i18n="pick">📁 Choose image</button>
+        <input type="file" id="up_fileInput" accept="image/*">
+        <div class="file-meta" id="up_fileMeta"></div>
+      </div>
+
+      <div class="block">
+        <div class="block-title"><span class="num">2</span><span data-i18n="block2">Scale</span></div>
+        <div class="scale-grid">
+          <button class="scale-btn active" id="up_scale2">
+            <span class="big">2×</span><span class="sm" data-i18n="scale2sub">Recommended</span>
+          </button>
+          <button class="scale-btn" id="up_scale4">
+            <span class="big">4×</span><span class="sm" data-i18n="scale4sub">Slower</span>
+          </button>
+        </div>
+        <div class="size-preview" id="up_sizePreview" style="display:none;">
+          <span id="up_sizeIn">—</span><span class="arrow">→</span><span class="out" id="up_sizeOut">—</span>
+        </div>
+        <div class="warn" id="up_sizeWarn"></div>
+      </div>
+
+      <div class="block" style="margin-top:auto;">
+        <button class="btn btn-primary" id="up_runBtn" data-i18n="run" disabled>Upscale</button>
+        <div class="hint" id="up_runHint" style="text-align:center;" data-i18n="runHintIdle">Choose an image first</div>
+      </div>
+    </aside>
+
+    <section class="stage" id="up_stage">
+      <div class="dropzone" id="up_dropzone">
+        <div class="big">🖼</div>
+        <div class="lead" data-i18n="dropLead">Drag &amp; drop an image</div>
+        <div class="sub" data-i18n="dropOr">or</div>
+        <button class="dz-btn" id="up_dzBtn" data-i18n="dropBtn">Choose image</button>
+        <div class="sub" style="margin-top:8px;" data-i18n="dropNote">Files are never uploaded. Everything runs inside your browser.</div>
+      </div>
+      <div id="up_canvasWrap">
+        <canvas id="up_imgCanvas"></canvas>
+      </div>
+      <div class="canvas-controls hidden" id="up_canvasControls">
+        <button class="cc-btn" id="up_ccOut" title="Zoom out">−</button>
+        <span class="cc-zoom" id="up_ccZoom">100%</span>
+        <button class="cc-btn" id="up_ccIn" title="Zoom in">+</button>
+        <button class="cc-btn" id="up_ccFit" title="Fit">⊡</button>
+        <div class="cc-sep"></div>
+        <button class="cc-btn" id="up_ccPan" title="Pan">✋</button>
+      </div>
+    </section>
+
+  </div>
+
+  <footer class="footer">
+    <div class="fbar"><div class="ffill" id="up_ffill"></div></div>
+    <span id="up_statusMsg" data-i18n="statusIdle">Idle</span>
+  </footer>
+  </div><!-- /tab-up -->
 </div><!-- /app -->
+
+<!-- 업스케일 진행 -->
+<div class="overlay" id="up_overlay">
+  <div class="card" id="up_progressCard">
+    <div id="up_cardIcon"><div class="spinner"></div></div>
+    <div class="card-stage" id="up_cardStage"></div>
+    <div class="card-detail" id="up_cardDetail"></div>
+    <div class="card-bar"><div class="card-bar-fill" id="up_cardBarFill"></div></div>
+    <div class="card-pct" id="up_cardPct"></div>
+  </div>
+</div>
+
+<!-- 업스케일 결과 -->
+<div class="result" id="up_resultOverlay">
+  <div class="result-card">
+    <div class="result-head">
+      <h3><span data-i18n="resultTitle">✓ Done</span> <span class="sub" id="up_resultSub"></span></h3>
+    </div>
+    <div class="compare" id="up_compare">
+      <img id="up_resBefore" src="" alt="before">
+      <div class="after-wrap" id="up_afterWrap"><img id="up_resAfter" src="" alt="after"></div>
+      <div class="divider" id="up_divider"></div>
+      <div class="tag before" data-i18n="tagBefore">Before</div>
+      <div class="tag after" data-i18n="tagAfter">After</div>
+      <div class="handle">⇆</div>
+    </div>
+    <div class="compare-note" data-i18n="compareNote">Both sides shown at the same display size — drag to compare detail.</div>
+    <div class="result-actions">
+      <button id="up_closeBtn" data-i18n="close">Close</button>
+      <button class="primary" id="up_dlBtn" data-i18n="download">⬇ Download</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="up_toast"></div>
 
 <!-- 워터마크 진행 -->
 <div class="overlay" id="overlay">
@@ -712,7 +841,10 @@ input[type=file]{display:none;}
 </div>
 
 <!-- 워터마크 엔진: onnxruntime-web (탭 진입 시 lazy 로드) -->
-<script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.20.1/dist/ort.min.js"></script>
+<!-- 2026-07-17: ort.min.js → ort.webgpu.min.js. 옛 번들엔 WebGPU 백엔드가 없어서
+     executionProviders:['webgpu',...] 를 줘도 조용히 CPU(wasm)로 떨어졌다(실측 확인).
+     이 번들은 wasm 도 포함 = GPU 없는 기기는 그대로 CPU 폴백. -->
+<script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.20.1/dist/ort.webgpu.min.js" crossorigin="anonymous"></script>
 <script>
 // ──────────────────────────────────────────────
 //  다국어 (i18n)
@@ -956,11 +1088,27 @@ function applyToolCursor(canvasId, tool, opts){
 async function loadEngine(){
   setEngine('loading', t('engLoading'));
   try{
-    const provider = (navigator.gpu ? 'webgpu' : 'wasm');
-    state.session = await ort_.InferenceSession.create(MODEL_URL,{
-      executionProviders:[provider,'wasm'],
-      graphOptimizationLevel:'all',
-    });
+    // ★ 2026-07-17 수정 — 옛 코드는 navigator.gpu 가 있으면 무조건 provider='webgpu' 라 적고
+    //   화면에도 "GPU"라고 표시했다. 하지만 번들에 WebGPU 백엔드가 없으면 ORT 는 조용히 wasm 으로
+    //   떨어지므로, 실제로는 CPU 로 돌면서 화면만 GPU 였다(실측 확인: [webgpu] backend not found).
+    //   → EP 를 webgpu 하나만 줘서 세션이 진짜 만들어지는지로 판별한다. 안 되면 wasm.
+    let provider = 'wasm';
+    if(navigator.gpu){
+      try{
+        state.session = await ort_.InferenceSession.create(MODEL_URL,{
+          executionProviders:['webgpu'],
+          graphOptimizationLevel:'all',
+        });
+        provider = 'webgpu';
+      }catch(_){ state.session = null; }
+    }
+    if(!state.session){
+      state.session = await ort_.InferenceSession.create(MODEL_URL,{
+        executionProviders:['wasm'],
+        graphOptimizationLevel:'all',
+      });
+      provider = 'wasm';
+    }
     state.engineProvider = provider;
     state.engineReady = true;
     setEngine('ready', provider==='webgpu' ? t('engReadyGpu') : t('engReady'));
@@ -1702,13 +1850,13 @@ applyLang(LANG);
 //  - 언어 토글: 양쪽 패널 i18n + 공유 헤더(설치 버튼·탭 라벨) 갱신.
 // ══════════════════════════════════════════════════════════════════════
 const SHARED_I18N = {
-  ko:{ tabWm:'워터마크 제거', tabBg:'배경 빼기', installBtn:'⬇ 앱 설치',
+  ko:{ tabWm:'워터마크 제거', tabBg:'배경 빼기', tabUp:'업스케일', installBtn:'⬇ 앱 설치',
        resetLabel:'리셋', confirmCancel:'취소', confirmReset:'리셋',
        resetConfirmMsg:'처음 상태로 되돌립니다. 계속할까요?',
        updateMsg:'새 버전이 있어요. 업데이트하시겠어요?', updateNow:'업데이트', updateLater:'나중에',
        cropLabel:'자르기', cropGuide:'자를 영역을 드래그하세요', cropApply:'적용', cropCancel:'취소',
        cropDone:'선택한 영역으로 잘랐습니다', cropTiny:'영역이 너무 작습니다 — 다시 드래그하세요' },
-  en:{ tabWm:'Watermark', tabBg:'Background', installBtn:'⬇ Install',
+  en:{ tabWm:'Watermark', tabBg:'Background', tabUp:'Upscale', installBtn:'⬇ Install',
        resetLabel:'Reset', confirmCancel:'Cancel', confirmReset:'Reset',
        resetConfirmMsg:'Reset to the start? This clears your work.',
        updateMsg:'A new version is available. Update now?', updateNow:'Update', updateLater:'Later',
@@ -1736,23 +1884,29 @@ function confirmReset(which){
   ok.onclick=()=>{ close(); if(which==='wm'){ wmReset(); } else if(window.bgDoReset){ window.bgDoReset(); } };
 }
 let CURRENT_TAB='wm';
+// 2026-07-17: 2탭 → 3탭(업스케일 추가). 탭별 패널·엔진칩·lazy 엔진·캔버스 재계산을 표로 처리.
+const TABS = {
+  wm: { panel:'tab-wm', btn:'tabBtnWm', pill:'enginePill' },
+  bg: { panel:'tab-bg', btn:'tabBtnBg', pill:'bg_enginePill' },
+  up: { panel:'tab-up', btn:'tabBtnUp', pill:'up_enginePill' },
+};
 function switchTab(tab){
-  if(tab===CURRENT_TAB) return;
+  if(tab===CURRENT_TAB || !TABS[tab]) return;
   CURRENT_TAB=tab;
-  const isWm = tab==='wm';
-  document.getElementById('tab-wm').classList.toggle('hidden',!isWm);
-  document.getElementById('tab-bg').classList.toggle('hidden',isWm);
-  document.getElementById('tabBtnWm').classList.toggle('active',isWm);
-  document.getElementById('tabBtnBg').classList.toggle('active',!isWm);
-  // 헤더 엔진칩 전환
-  document.getElementById('enginePill').classList.toggle('tab-hidden',!isWm);
-  document.getElementById('bg_enginePill').classList.toggle('tab-hidden',isWm);
-  // 활성 탭 엔진만 lazy 로드
-  if(isWm){ if(!state.session && !state.engineFailed) loadEngine(); }
-  else { if(window.bgEnsureEngine) window.bgEnsureEngine(); }
+  for(const [k,v] of Object.entries(TABS)){
+    const on = (k===tab);
+    document.getElementById(v.panel).classList.toggle('hidden',!on);
+    document.getElementById(v.btn).classList.toggle('active',on);
+    document.getElementById(v.pill).classList.toggle('tab-hidden',!on);
+  }
+  // 활성 탭 엔진만 lazy 로드 (업스케일 모델 67MB = 탭에 들어올 때만 받는다)
+  if(tab==='wm'){ if(!state.session && !state.engineFailed) loadEngine(); }
+  else if(tab==='bg'){ if(window.bgEnsureEngine) window.bgEnsureEngine(); }
+  else if(tab==='up'){ if(window.upEnsureEngine) window.upEnsureEngine(); }
   // 캔버스 레이아웃 재계산 (숨김→표시 시 크기 0 방지)
-  if(isWm){ if(state.img){ fitCanvas(); applyView(); } }
-  else { if(window.bgRefitCanvas) window.bgRefitCanvas(); }
+  if(tab==='wm'){ if(state.img){ fitCanvas(); applyView(); } }
+  else if(tab==='bg'){ if(window.bgRefitCanvas) window.bgRefitCanvas(); }
+  else if(tab==='up'){ if(window.upRefitCanvas) window.upRefitCanvas(); }
 }
 // 공유 언어 토글: 워터마크 + 배경 + 공유 헤더 모두 갱신
 function appToggleLang(){
@@ -1760,6 +1914,7 @@ function appToggleLang(){
   applyLang(next);                 // 워터마크 패널
   applySharedI18n(next);           // 공유 헤더(탭·설치)
   if(window.bgApplyLang) window.bgApplyLang(next); // 배경 패널
+  if(window.upApplyLang) window.upApplyLang(next); // 업스케일 패널 (2026-07-17)
 }
 // 초기 공유 i18n + 워터마크 탭 엔진 lazy 로드(기본 활성 탭)
 applySharedI18n(LANG);
@@ -3389,5 +3544,592 @@ window.bgDoReset = ()=>bgReset(); // 확인 팝업이 [리셋] 승인 시 호출
 // ★ 엔진은 lazy: 배경 탭 진입 시 window.bgEnsureEngine()로 로드 (여기서 자동 로드 안 함)
 
 </script>
+
+<!-- ════════════════════════════════════════════════════════════════════
+     업스케일 엔진 (2026-07-17 통합) — SUNNY UPSCALER 이식
+     · Real-ESRGAN x4plus ONNX / 128×128 고정 타일 + 16px 겹침 블렌딩
+     · type="module" = 스코프 격리 → 워터마크/배경 탭의 전역(state·t·toast…)과 안 부딪힘
+     · 모델 67MB = 업스케일 탭 진입 시에만 다운로드 (switchTab → window.upEnsureEngine)
+     · 원본 = 프로젝트/업스케일러/index.html (id 앞에 up_ 접두)
+     ════════════════════════════════════════════════════════════════════ -->
+<script type="module">
+// ──────────────────────────────────────────────
+//  다국어 (i18n)
+// ──────────────────────────────────────────────
+const I18N = {
+  ko:{
+    installBtn:'⬇ 앱 설치',
+    block1:'이미지', pick:'📁 이미지 선택',
+    block2:'배율', scale2sub:'권장', scale4sub:'느림',
+    run:'업스케일 실행', runHintIdle:'이미지를 먼저 선택하세요', runHintReady:'배율을 고르고 업스케일하세요',
+    dropLead:'이미지를 끌어다 놓으세요', dropOr:'또는', dropBtn:'이미지 선택',
+    dropNote:'파일은 서버로 전송되지 않습니다. 모든 처리는 이 브라우저 안에서 이뤄집니다.',
+    statusIdle:'대기 중', statusReady:'배율을 고르고 업스케일하세요',
+    resultTitle:'✓ 완료', tagBefore:'원본', tagAfter:'업스케일',
+    compareNote:'양쪽을 같은 크기로 표시했습니다 — 손잡이를 끌어 디테일을 비교하세요.',
+    close:'닫기', download:'⬇ 다운로드',
+    engLoading:'AI엔진 준비 중…', engReady:'사용 가능', engErr:'AI엔진 불러오기 실패',
+    onlyImage:'이미지 파일만 가능합니다', cantOpen:'이미지를 열 수 없습니다',
+    pickFirst:'먼저 이미지를 선택하세요',
+    processing:'업스케일 중…', preparing:'준비 중',
+    onGpu:'GPU로 처리 중', onCpu:'처리 중 (잠시 걸릴 수 있습니다)',
+    tileProgress:'타일 처리 중',
+    engNotReady:'엔진이 아직 준비되지 않았습니다. 잠시 후 다시 시도하세요.', engUnavailable:'엔진을 사용할 수 없습니다',
+    failTitle:'처리 실패', genericErr:'처리 중 오류가 발생했습니다',
+    oomErr:'이미지가 너무 커서 메모리가 부족합니다. 더 작은 이미지나 2× 배율로 시도하세요.',
+    doneStatus:'완료', failStatus:'실패: ',
+    secUnit:'초',
+    installIOS:'공유 버튼 → "홈 화면에 추가"를 누르면 앱으로 설치됩니다',
+    installAndroid:'브라우저 메뉴에서 "앱 설치"를 선택하세요',
+    bigWarn:'큰 이미지입니다. 4× 처리는 시간이 오래 걸리고 메모리를 많이 씁니다. 2×를 권장합니다.',
+    mobileWarn:'모바일에서는 큰 이미지의 4× 처리가 느리거나 멈출 수 있습니다.',
+    panOn:'이동 모드 — 드래그해서 그림을 옮기세요', panOff:'보기 모드로 돌아왔습니다',
+  },
+  en:{
+    installBtn:'⬇ Install',
+    block1:'Image', pick:'📁 Choose image',
+    block2:'Scale', scale2sub:'Recommended', scale4sub:'Slower',
+    run:'Upscale', runHintIdle:'Choose an image first', runHintReady:'Pick a scale, then upscale',
+    dropLead:'Drag & drop an image', dropOr:'or', dropBtn:'Choose image',
+    dropNote:'Files are never uploaded. Everything runs inside your browser.',
+    statusIdle:'Idle', statusReady:'Pick a scale, then upscale',
+    resultTitle:'✓ Done', tagBefore:'Before', tagAfter:'Upscaled',
+    compareNote:'Both sides shown at the same display size — drag to compare detail.',
+    close:'Close', download:'⬇ Download',
+    engLoading:'Loading AI engine…', engReady:'Ready', engErr:'AI engine failed',
+    onlyImage:'Image files only', cantOpen:'Couldn’t open that image',
+    pickFirst:'Choose an image first',
+    processing:'Upscaling…', preparing:'Preparing',
+    onGpu:'Processing on GPU', onCpu:'Processing (may take a moment)',
+    tileProgress:'Processing tiles',
+    engNotReady:'The engine isn’t ready yet. Please try again in a moment.', engUnavailable:'Engine unavailable',
+    failTitle:'Failed', genericErr:'Something went wrong',
+    oomErr:'The image is too large and ran out of memory. Try a smaller image or 2× scale.',
+    doneStatus:'Done', failStatus:'Failed: ',
+    secUnit:'s',
+    installIOS:'Tap Share → "Add to Home Screen" to install the app',
+    installAndroid:'Choose "Install app" from your browser menu',
+    bigWarn:'Large image. 4× takes a long time and uses a lot of memory. 2× is recommended.',
+    mobileWarn:'On mobile, 4× on a large image may be slow or stall.',
+    panOn:'Pan mode — drag to move the image', panOff:'Back to view mode',
+  }
+};
+let LANG = localStorage.getItem('up_lang') || (navigator.language && navigator.language.toLowerCase().startsWith('ko') ? 'ko' : 'en');
+function t(key){ return (I18N[LANG] && I18N[LANG][key]) || I18N.en[key] || key; }
+function applyLang(lang){
+  LANG = lang;   // 2026-07-17 통합: 언어 저장·<html lang>·언어버튼 = 공유 헤더가 담당
+  document.querySelectorAll('#tab-up [data-i18n]').forEach(el=>{ el.textContent = t(el.dataset.i18n); });
+  refreshEngineLabel();
+  refreshDynamic();
+}
+function refreshEngineLabel(){
+  if(state.engineReady){ setEngine('ready', t('engReady')); }
+  else if(state.engineFailed){ setEngine('err', t('engErr')); }
+  else { setEngine('loading', t('engLoading')); }
+}
+function refreshDynamic(){
+  const rh=document.getElementById('up_runHint');
+  rh.textContent = state.img ? t('runHintReady') : t('runHintIdle');
+  const sm=document.getElementById('up_statusMsg');
+  sm.textContent = state.img ? t('statusReady') : t('statusIdle');
+  updateSizePreview();
+}
+
+// ──────────────────────────────────────────────
+//  상태
+// ──────────────────────────────────────────────
+const MODEL_URL = './realesrgan_x4_128.onnx'; // Real-ESRGAN x4plus (BSD-3) — 고정 128×128 입력
+const MODEL_SCALE = 4;                  // 모델 자체 배율(x4). 2× = x4 결과를 절반으로 축소
+const TILE = 128;                       // 모델 고정 입력 한 변(px) — 모든 타일이 같은 모양 → 셰이더 1회 컴파일
+const TILE_OUT = TILE*MODEL_SCALE;      // 타일 출력 한 변(512)
+const OVERLAP = 16;                     // 타일 겹침(px) — 경계 블렌딩용
+const ort_ = window.ort;
+ort_.env.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.20.1/dist/';
+
+const state = {
+  img:null, imgW:0, imgH:0, fileName:null,
+  origURL:null, resultURL:null,
+  scale:2,
+  session:null, engineReady:false, engineLoading:false, engineProvider:null, engineFailed:false,
+  startTime:0, busy:false,
+  zoom:1, panX:0, panY:0, panMode:false, panning:false, panSX:0, panSY:0,
+  pinching:false, pinchD:0, pinchM:null, pinchZ:1, pinchPX:0, pinchPY:0,
+};
+
+// ──────────────────────────────────────────────
+//  엔진(모델) 로딩
+// ──────────────────────────────────────────────
+async function loadEngine(){
+  if(state.engineLoading) return;
+  state.engineLoading = true;
+  setEngine('loading', t('engLoading'));
+  try{
+    // WASM 멀티스레드 + SIMD 설정 (WebGPU 미지원 시 속도 핵심)
+    try{
+      const cores = navigator.hardwareConcurrency || 4;
+      ort_.env.wasm.numThreads = Math.max(1, Math.min(cores, 8));
+      ort_.env.wasm.simd = true;
+    }catch(_){}
+
+    // WebGPU 실사용 가능 여부를 "webgpu 전용" 작은 세션으로 실제 확인한다.
+    //   (navigator.gpu / requestAdapter는 거짓양성이 잦다. ORT가 정말 webgpu 백엔드를
+    //    잡는지 EP를 webgpu 하나만 줘서 만들어 본다. 실패하면 wasm으로 간다.)
+    let useGpu=false;
+    if(navigator.gpu){
+      try{
+        const probe=await ort_.InferenceSession.create(MODEL_URL,{ executionProviders:['webgpu'] });
+        const pw=new ort_.Tensor('float32', new Float32Array(3*TILE*TILE).fill(0.5), [1,3,TILE,TILE]);
+        const pf={}; pf[probe.inputNames[0]]=pw;
+        await probe.run(pf);  // webgpu에서 실제로 1회 실행되면 OK
+        useGpu=true; state.session=probe;
+      }catch(_){ useGpu=false; }
+    }
+    if(!state.session){
+      state.session = await ort_.InferenceSession.create(MODEL_URL,{
+        executionProviders:['wasm'],
+        graphOptimizationLevel:'all',
+      });
+    }
+
+    // ★ 워밍업: 본 추론 입력(TILE×TILE)으로 한 번 돌려 실행 경로를 준비한다.
+    try{
+      const warm=new ort_.Tensor('float32', new Float32Array(3*TILE*TILE).fill(0.5), [1,3,TILE,TILE]);
+      const f={}; f[state.session.inputNames[0]]=warm;
+      const w0=performance.now();
+      await state.session.run(f);
+      state.warmMs=Math.round(performance.now()-w0);
+    }catch(_){ /* 워밍업 실패해도 본 추론은 시도 */ }
+    state.engineProvider = useGpu ? 'webgpu' : 'wasm';
+    state.engineReady = true;
+    state.engineLoading = false;
+    setEngine('ready', t('engReady'));
+  }catch(e){
+    console.error('engine load failed',e);
+    state.engineFailed = true;
+    state.engineLoading = false;
+    setEngine('err', t('engErr'));
+    state.engineReady = false;
+  }
+}
+function setEngine(cls,label){
+  const dot=document.getElementById('up_engineDot');
+  dot.className='engine-dot '+(cls==='ready'?'ready':cls==='loading'?'loading':cls==='err'?'err':'');
+  document.getElementById('up_engineLabel').textContent=label;
+  const pill=document.getElementById('up_enginePill');
+  if(pill) pill.style.display = (cls==='ready') ? 'none' : 'flex';
+}
+
+// ──────────────────────────────────────────────
+//  파일 선택 / 드래그앤드롭
+// ──────────────────────────────────────────────
+function onPickFile(e){ const f=e.target.files[0]; if(f) loadImageFile(f); e.target.value=''; }
+
+function loadImageFile(file){
+  if(!file.type.startsWith('image/')){ toast(t('onlyImage')); return; }
+  state.fileName = file.name;
+  const url = URL.createObjectURL(file);
+  state.origURL = url;
+  const img = new Image();
+  img.onload = ()=>{
+    state.img=img; state.imgW=img.naturalWidth; state.imgH=img.naturalHeight;
+    setupCanvas(img);
+    document.getElementById('up_fileMeta').textContent = `${file.name} · ${img.naturalWidth}×${img.naturalHeight}`;
+    document.getElementById('up_runBtn').disabled=false;
+    document.getElementById('up_runHint').textContent=t('runHintReady');
+    document.getElementById('up_statusMsg').textContent=t('statusReady');
+    document.getElementById('up_sizePreview').style.display='flex';
+    updateSizePreview();
+  };
+  img.onerror=()=>toast(t('cantOpen'));
+  img.src=url;
+}
+
+const dz=document.getElementById('up_dropzone');
+['dragenter','dragover'].forEach(ev=>document.getElementById('up_stage').addEventListener(ev,e=>{e.preventDefault();dz.classList.add('hover');}));
+['dragleave','drop'].forEach(ev=>document.getElementById('up_stage').addEventListener(ev,e=>{e.preventDefault();dz.classList.remove('hover');}));
+document.getElementById('up_stage').addEventListener('drop',e=>{
+  const f=e.dataTransfer.files[0]; if(f) loadImageFile(f);
+});
+
+// ──────────────────────────────────────────────
+//  배율 선택 + 출력 크기 미리보기 + 경고
+// ──────────────────────────────────────────────
+function setScale(s){
+  state.scale=s;
+  document.getElementById('up_scale2').classList.toggle('active',s===2);
+  document.getElementById('up_scale4').classList.toggle('active',s===4);
+  updateSizePreview();
+}
+function updateSizePreview(){
+  if(!state.img) return;
+  const ow=state.imgW*state.scale, oh=state.imgH*state.scale;
+  document.getElementById('up_sizeIn').textContent=`${state.imgW}×${state.imgH}`;
+  document.getElementById('up_sizeOut').textContent=`${ow}×${oh}`;
+  // 경고: 큰 이미지 + 4× / 모바일
+  const warn=document.getElementById('up_sizeWarn');
+  const isMobile=window.matchMedia('(max-width:768px)').matches;
+  const px=state.imgW*state.imgH;
+  let msg='';
+  if(state.scale===4 && px>1200*1200) msg=t('bigWarn');
+  else if(isMobile && state.scale===4 && px>800*800) msg=t('mobileWarn');
+  if(msg){ warn.textContent=msg; warn.classList.add('show'); }
+  else warn.classList.remove('show');
+}
+
+// ──────────────────────────────────────────────
+//  캔버스 셋업 + 반응형
+// ──────────────────────────────────────────────
+function fitCanvas(){
+  const area=document.getElementById('up_stage');
+  const pad=28;
+  const maxW=area.clientWidth-pad*2, maxH=area.clientHeight-pad*2;
+  const scale=Math.min(1,maxW/state.imgW,maxH/state.imgH);
+  const dw=Math.round(state.imgW*scale), dh=Math.round(state.imgH*scale);
+  const c=document.getElementById('up_imgCanvas'); c.style.width=dw+'px'; c.style.height=dh+'px';
+  const wrap=document.getElementById('up_canvasWrap'); wrap.style.width=dw+'px'; wrap.style.height=dh+'px';
+}
+function setupCanvas(img){
+  const imgCv=document.getElementById('up_imgCanvas');
+  imgCv.width=img.naturalWidth; imgCv.height=img.naturalHeight;
+  imgCv.getContext('2d').drawImage(img,0,0);
+  document.getElementById('up_dropzone').style.display='none';
+  document.getElementById('up_canvasWrap').style.display='block';
+  fitCanvas();
+  state.zoom=1; state.panX=0; state.panY=0; state.panMode=false;
+  document.getElementById('up_ccPan').classList.remove('active');
+  document.getElementById('up_stage').classList.remove('pan-mode','panning');
+  applyView();
+  document.getElementById('up_canvasControls').classList.remove('hidden');
+}
+window.addEventListener('resize',()=>{ if(state.img){ fitCanvas(); applyView(); } });
+
+// ──────────────────────────────────────────────
+//  줌 · 팬 · 핀치
+// ──────────────────────────────────────────────
+function applyView(){
+  const wrap=document.getElementById('up_canvasWrap');
+  wrap.style.transform=`translate(${state.panX}px,${state.panY}px) scale(${state.zoom})`;
+  const z=document.getElementById('up_ccZoom'); if(z) z.textContent=Math.round(state.zoom*100)+'%';
+}
+function zoomBy(f){
+  if(!state.img) return;
+  state.zoom=Math.max(1,Math.min(8,state.zoom*f));
+  if(state.zoom===1){ state.panX=0; state.panY=0; }
+  applyView();
+}
+function zoomFit(){ state.zoom=1; state.panX=0; state.panY=0; applyView(); }
+function togglePan(){
+  if(!state.img) return;
+  state.panMode=!state.panMode;
+  document.getElementById('up_ccPan').classList.toggle('active',state.panMode);
+  document.getElementById('up_stage').classList.toggle('pan-mode',state.panMode);
+  toast(state.panMode?t('panOn'):t('panOff'));
+}
+function startPan(ev){ state.panning=true; state.panSX=ev.clientX-state.panX; state.panSY=ev.clientY-state.panY; document.getElementById('up_stage').classList.add('panning'); }
+function movePan(ev){ if(!state.panning)return; state.panX=ev.clientX-state.panSX; state.panY=ev.clientY-state.panSY; applyView(); }
+function endPan(){ if(!state.panning)return; state.panning=false; document.getElementById('up_stage').classList.remove('panning'); }
+function pinchDist(ts){ const a=ts[0],b=ts[1]; return Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY); }
+function pinchMid(ts){ const a=ts[0],b=ts[1]; return {x:(a.clientX+b.clientX)/2,y:(a.clientY+b.clientY)/2}; }
+function startPinch(e){ state.pinching=true; state.pinchD=pinchDist(e.touches)||1; state.pinchM=pinchMid(e.touches); state.pinchZ=state.zoom; state.pinchPX=state.panX; state.pinchPY=state.panY; }
+function movePinch(e){
+  if(!state.pinching)return;
+  const d=pinchDist(e.touches), m=pinchMid(e.touches);
+  state.zoom=Math.max(1,Math.min(8,state.pinchZ*(d/state.pinchD)));
+  state.panX=state.pinchPX+(m.x-state.pinchM.x);
+  state.panY=state.pinchPY+(m.y-state.pinchM.y);
+  if(state.zoom===1){ state.panX=0; state.panY=0; }
+  applyView();
+}
+(function attachView(){
+  const cv=document.getElementById('up_imgCanvas');
+  cv.onmousedown=e=>{ if(state.panMode) startPan(e); };
+  cv.onmousemove=e=>{ if(state.panMode) movePan(e); };
+  cv.onmouseup=()=>{ if(state.panMode) endPan(); };
+  cv.onmouseleave=()=>{ if(state.panMode) endPan(); };
+  cv.ontouchstart=e=>{
+    if(e.touches.length>=2){ e.preventDefault(); startPinch(e); return; }
+    if(state.panMode){ e.preventDefault(); const tt=e.touches[0]; startPan({clientX:tt.clientX,clientY:tt.clientY}); }
+  };
+  cv.ontouchmove=e=>{
+    if(state.pinching || e.touches.length>=2){ e.preventDefault(); movePinch(e); return; }
+    if(state.panMode){ e.preventDefault(); const tt=e.touches[0]; movePan({clientX:tt.clientX,clientY:tt.clientY}); }
+  };
+  cv.ontouchend=e=>{ if(state.pinching && e.touches.length<2) state.pinching=false; if(state.panMode) endPan(); };
+  document.getElementById('up_stage').addEventListener('wheel',e=>{
+    if(!state.img) return; e.preventDefault();
+    zoomBy(e.deltaY<0 ? 1.12 : 1/1.12);
+  },{passive:false});
+})();
+
+// ──────────────────────────────────────────────
+//  업스케일 코어 — 타일 분할 + 겹침 블렌딩
+// ──────────────────────────────────────────────
+
+// 한 장의 이미지데이터를 ×4 업스케일 (Real-ESRGAN 1패스). 타일 처리.
+// src: {data:Uint8ClampedArray RGBA, w, h}  →  반환 {data, w:4w, h:4h}
+//
+// ★ 모델은 항상 128×128 → 512×512 한 종류만 추론한다(고정 입력).
+//   덕분에 셰이더/커널은 첫 타일(또는 워밍업)에서 한 번만 준비되고 모든 타일·이미지가 재사용한다.
+//   타일은 16px 겹쳐 자르고, 겹친 변은 코사인² 가중으로 블렌딩해 경계 자국을 없앤다.
+//   가장자리 부분 타일은 항상 이미지 끝에 정렬해 채우므로 128 미만 입력이 생기지 않는다.
+async function upscalePass(src, onProgress){
+  const sess=state.session;
+  const inName = sess.inputNames[0];   // image
+  const outName= sess.outputNames[0];  // upscaled_image
+  const W=src.w, H=src.h, S=MODEL_SCALE;
+  const outW=W*S, outH=H*S;
+  const acc=new Float32Array(outW*outH*3);
+  const wsum=new Float32Array(outW*outH);
+  const T=TILE, TO=TILE_OUT;
+  const chw=new Float32Array(3*T*T); // 입력 버퍼 1개 재사용
+
+  // 타일 시작점 — (T-OVERLAP)만큼 전진, 마지막 타일은 이미지 끝(L-T)에 정렬.
+  // 이미지가 128보다 작으면 시작점 0 한 개(부족분은 가장자리 클램프로 채움).
+  const content=T-OVERLAP;
+  const starts=(L)=>{ if(L<=T) return [0]; const a=[]; for(let p=0;p<L;p+=content){ a.push(Math.min(p,L-T)); if(p+T>=L) break; } return [...new Set(a)]; };
+  const uxs=starts(W), uys=starts(H);
+  const total=uxs.length*uys.length;
+  let done=0;
+
+  for(const ty of uys){
+    for(const tx of uxs){
+      const tw=Math.min(T, W-tx), th=Math.min(T, H-ty); // 이 타일의 유효(실제 이미지) 크기
+      // 128×128 입력 채우기 — 유효 영역은 원본, 나머지(작은 이미지)는 가장자리 클램프
+      for(let yy=0;yy<T;yy++){
+        const syRaw=ty+Math.min(yy,th-1);
+        for(let xx=0;xx<T;xx++){
+          const sxRaw=tx+Math.min(xx,tw-1);
+          const si=(syRaw*W+sxRaw)*4;
+          const di=yy*T+xx;
+          chw[di]        = src.data[si]/255;
+          chw[T*T+di]    = src.data[si+1]/255;
+          chw[2*T*T+di]  = src.data[si+2]/255;
+        }
+      }
+      const input=new ort_.Tensor('float32',chw,[1,3,T,T]);
+      const feeds={}; feeds[inName]=input;
+      const out=await sess.run(feeds);
+      const rd=out[outName].data; // TO × TO
+      const otw=tw*S, oth=th*S;
+      const ox0=tx*S, oy0=ty*S;
+      const hasL=tx>0, hasR=tx+T<W, hasT=ty>0, hasB=ty+T<H;
+      for(let yy=0;yy<oth;yy++){
+        const gy=oy0+yy;
+        const wy=edgeWeight(yy,oth,OVERLAP*S, hasT, hasB);
+        for(let xx=0;xx<otw;xx++){
+          const gx=ox0+xx;
+          const wx=edgeWeight(xx,otw,OVERLAP*S, hasL, hasR);
+          const w=wx*wy;
+          const si=yy*TO+xx;
+          const gi=gy*outW+gx;
+          acc[gi*3]   += rd[si]          *w;
+          acc[gi*3+1] += rd[TO*TO+si]    *w;
+          acc[gi*3+2] += rd[2*TO*TO+si]  *w;
+          wsum[gi]    += w;
+        }
+      }
+      done++;
+      if(onProgress) onProgress(done,total);
+      await new Promise(r=>setTimeout(r,0)); // UI 양보 (진행률 갱신)
+    }
+  }
+  // 정규화 → RGBA
+  const data=new Uint8ClampedArray(outW*outH*4);
+  for(let i=0;i<outW*outH;i++){
+    const w=wsum[i]||1;
+    data[i*4]  =Math.round(Math.min(1,Math.max(0,acc[i*3]/w))*255);
+    data[i*4+1]=Math.round(Math.min(1,Math.max(0,acc[i*3+1]/w))*255);
+    data[i*4+2]=Math.round(Math.min(1,Math.max(0,acc[i*3+2]/w))*255);
+    data[i*4+3]=255;
+  }
+  return {data,w:outW,h:outH};
+}
+
+// ×4 결과를 정수배 축소해 ×2 등 다른 배율을 만든다(고품질 area 평균).
+function downscaleData(src, factor){
+  const W=src.w, H=src.h, ow=Math.round(W/factor), oh=Math.round(H/factor);
+  const sc=document.createElement('canvas'); sc.width=W; sc.height=H;
+  sc.getContext('2d').putImageData(new ImageData(src.data,W,H),0,0);
+  const dc=document.createElement('canvas'); dc.width=ow; dc.height=oh;
+  const dctx=dc.getContext('2d'); dctx.imageSmoothingEnabled=true; dctx.imageSmoothingQuality='high';
+  dctx.drawImage(sc,0,0,ow,oh);
+  return { data:dctx.getImageData(0,0,ow,oh).data, w:ow, h:oh };
+}
+
+// 타일 가장자리 가중치 — 겹치는 변만 부드럽게 떨어뜨림 (이미지 바깥쪽 변은 1 유지)
+function edgeWeight(i,len,band, hasLeft, hasRight){
+  let w=1;
+  if(hasLeft && i<band){ const x=i/band; w*=Math.sin(x*Math.PI/2)**2; }
+  if(hasRight && i>len-band){ const x=(len-i)/band; w*=Math.sin(x*Math.PI/2)**2; }
+  return Math.max(w,1e-3);
+}
+
+// ──────────────────────────────────────────────
+//  실행
+// ──────────────────────────────────────────────
+async function runUpscale(){
+  if(!state.img){ toast(t('pickFirst')); return; }
+  if(state.busy) return;
+  if(state.engineFailed && !state.session){ showError(t('engNotReady')); return; }
+  state.busy=true;
+  document.getElementById('up_runBtn').disabled=true;
+  showProgress(t('processing'), t('preparing'));
+  state.startTime=performance.now();
+
+  try{
+    if(!state.session){ await loadEngine(); }
+    if(!state.session) throw new Error(t('engUnavailable'));
+
+    const detail = state.engineProvider==='webgpu'?t('onGpu'):t('onCpu');
+    setProgress(t('processing'), detail);
+    await new Promise(r=>setTimeout(r,30));
+
+    // 원본 픽셀 추출
+    const W=state.imgW,H=state.imgH;
+    const ic=document.getElementById('up_imgCanvas');
+    let cur={ data:ic.getContext('2d').getImageData(0,0,W,H).data, w:W, h:H };
+
+    // 모델은 ×4. 4× = 한 번 추론, 2× = ×4 추론 후 절반으로 축소(area 평균, 고품질).
+    cur = await upscalePass(cur,(done,total)=>{
+      setProgress(t('processing'), detail);
+      setBar((done/total)*100, `${t('tileProgress')} ${done}/${total}`);
+    });
+    if(state.scale===2){ cur = downscaleData(cur, 2); }
+
+    // 결과 → 캔버스 → PNG
+    const oc=document.createElement('canvas'); oc.width=cur.w; oc.height=cur.h;
+    oc.getContext('2d').putImageData(new ImageData(cur.data,cur.w,cur.h),0,0);
+    state.resultURL=oc.toDataURL('image/png');
+
+    const sec=((performance.now()-state.startTime)/1000).toFixed(1);
+    hideProgress();
+    showResult(state.resultURL,sec,cur.w,cur.h);
+    document.getElementById('up_statusMsg').textContent=t('doneStatus');
+  }catch(err){
+    console.error(err);
+    const msg=/out of memory|oom|allocation|failed to allocate/i.test(String(err&&err.message))
+      ? t('oomErr') : (err.message||t('genericErr'));
+    showError(msg);
+  }finally{
+    state.busy=false;
+    document.getElementById('up_runBtn').disabled=false;
+  }
+}
+
+// ──────────────────────────────────────────────
+//  진행 / 에러 오버레이
+// ──────────────────────────────────────────────
+function showProgress(stage,detail){
+  document.getElementById('up_overlay').classList.add('show');
+  document.getElementById('up_cardIcon').innerHTML='<div class="spinner"></div>';
+  document.getElementById('up_cardStage').textContent=stage;
+  document.getElementById('up_cardDetail').textContent=detail||'';
+  document.getElementById('up_cardPct').textContent='';
+  setBar(0,'');
+  const c=document.querySelector('#up_progressCard .card-actions'); if(c) c.remove();
+  document.getElementById('up_ffill').classList.add('indet');
+  document.getElementById('up_statusMsg').textContent=stage;
+}
+function setProgress(stage,detail){
+  document.getElementById('up_cardStage').textContent=stage;
+  document.getElementById('up_cardDetail').textContent=detail||'';
+}
+function setBar(pct,label){
+  document.getElementById('up_cardBarFill').style.width=Math.max(0,Math.min(100,pct))+'%';
+  document.getElementById('up_cardPct').textContent=label||(Math.round(pct)+'%');
+}
+function hideProgress(){ document.getElementById('up_overlay').classList.remove('show'); document.getElementById('up_ffill').classList.remove('indet'); }
+function showError(msg){
+  document.getElementById('up_overlay').classList.add('show');
+  document.getElementById('up_cardIcon').innerHTML='<div class="err-icon">!</div>';
+  document.getElementById('up_cardStage').textContent=t('failTitle');
+  document.getElementById('up_cardDetail').textContent=msg;
+  setBar(0,''); document.getElementById('up_cardPct').textContent='';
+  const card=document.getElementById('up_progressCard');
+  let acts=card.querySelector('.card-actions');
+  if(!acts){ acts=document.createElement('div'); acts.className='card-actions'; card.appendChild(acts); }
+  acts.innerHTML='';
+  const close=document.createElement('button'); close.textContent=t('close');
+  close.onclick=()=>{ document.getElementById('up_overlay').classList.remove('show'); acts.remove(); };
+  acts.appendChild(close);
+  document.getElementById('up_ffill').classList.remove('indet');
+  document.getElementById('up_statusMsg').textContent=t('failStatus')+msg;
+}
+
+// ──────────────────────────────────────────────
+//  결과 (Before/After)
+// ──────────────────────────────────────────────
+function showResult(url,sec,ow,oh){
+  document.getElementById('up_resBefore').src=state.origURL;
+  document.getElementById('up_resAfter').src=url;
+  document.getElementById('up_resultSub').textContent=`· ${ow}×${oh} · ${sec}${t('secUnit')}`;
+  document.getElementById('up_resultOverlay').classList.add('show');
+  setTimeout(initCompare,50);
+}
+function initCompare(){
+  const compare=document.getElementById('up_compare');
+  const after=document.getElementById('up_afterWrap');
+  const handle=compare.querySelector('.handle');
+  const divider=document.getElementById('up_divider');
+  const afterImg=document.getElementById('up_resAfter');
+  const beforeImg=document.getElementById('up_resBefore');
+  function sync(){ const r=compare.getBoundingClientRect(); afterImg.style.setProperty('--cw',r.width+'px'); afterImg.style.width=r.width+'px'; }
+  if(beforeImg.complete) sync(); else beforeImg.onload=sync;
+  window.addEventListener('resize',sync);
+  function setSplit(p){ p=Math.max(0,Math.min(100,p)); after.style.width=p+'%'; handle.style.left=p+'%'; divider.style.left=`calc(${p}% - 1.5px)`; }
+  setSplit(50);
+  function move(cx){ const r=compare.getBoundingClientRect(); setSplit(((cx-r.left)/r.width)*100); }
+  let drag=false;
+  compare.onmousedown=e=>{drag=true;move(e.clientX);};
+  window.addEventListener('mousemove',e=>{if(drag)move(e.clientX);});
+  window.addEventListener('mouseup',()=>drag=false);
+  compare.ontouchstart=e=>{drag=true;move(e.touches[0].clientX);};
+  compare.ontouchmove=e=>{if(drag){e.preventDefault();move(e.touches[0].clientX);}};
+  compare.ontouchend=()=>drag=false;
+}
+function closeResult(){ document.getElementById('up_resultOverlay').classList.remove('show'); }
+function downloadResult(){
+  if(!state.resultURL) return;
+  const a=document.createElement('a');
+  const base=(state.fileName||'image').replace(/\.[^.]+$/,'');
+  a.href=state.resultURL; a.download=`${base}_${state.scale}x.png`; a.click();
+}
+
+// ──────────────────────────────────────────────
+//  유틸
+// ──────────────────────────────────────────────
+function toast(msg){
+  const el=document.getElementById('up_toast'); el.textContent=msg; el.classList.add('show');
+  clearTimeout(el._h); el._h=setTimeout(()=>el.classList.remove('show'),2800);
+}
+
+// 서비스워커 등록은 상단 COI 부트스트랩에서 이미 처리함.
+// 2026-07-17 통합: 진입 즉시 엔진 로드 안 함 = 업스케일 탭에 들어올 때만(모델 67MB).
+applyLang(LANG);
+
+// ══════════════════════════════════════════════════════════════════════
+//  2026-07-17 탭 통합 — 배선 + 바깥 노출
+//  (모듈 스코프라 inline onclick 을 못 쓴다 → 여기서 리스너로 연결)
+// ══════════════════════════════════════════════════════════════════════
+const $up = (id)=>document.getElementById(id);
+$up('up_fileInput').addEventListener('change', onPickFile);
+$up('up_pickBtn').addEventListener('click', ()=>$up('up_fileInput').click());
+$up('up_dzBtn').addEventListener('click', ()=>$up('up_fileInput').click());
+$up('up_scale2').addEventListener('click', ()=>setScale(2));
+$up('up_scale4').addEventListener('click', ()=>setScale(4));
+$up('up_runBtn').addEventListener('click', runUpscale);
+$up('up_ccOut').addEventListener('click', ()=>zoomBy(1/1.3));
+$up('up_ccIn').addEventListener('click', ()=>zoomBy(1.3));
+$up('up_ccFit').addEventListener('click', zoomFit);
+$up('up_ccPan').addEventListener('click', togglePan);
+$up('up_closeBtn').addEventListener('click', closeResult);
+$up('up_dlBtn').addEventListener('click', downloadResult);
+
+window.upApplyLang   = (lang)=>{ applyLang(lang); };
+window.upEnsureEngine= ()=>{ if(!state.engineReady && !state.engineLoading && !state.engineFailed) loadEngine(); };
+window.upRefitCanvas = ()=>{ if(state.img){ fitCanvas(); applyView(); } };
+
+</script>
+
 </body>
 </html>

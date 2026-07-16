@@ -2,7 +2,8 @@
 // 코드(HTML/JS/manifest)는 network-first → 업데이트가 바로 반영.
 // 무거운 자산(모델 .onnx · onnxruntime · 폰트 · 아이콘)은 cache-first → 두 번째부터 즉시·오프라인.
 // ★ CACHE 상수를 올릴 때마다(예 v3→v4) 새 버전으로 인식 → 페이지가 "새 버전 있음" 배너 표시.
-const CACHE = 'sunny-remover-v6';
+// v7 (2026-07-17): 업스케일 탭 통합 + ort.webgpu.min.js 번들 교체 → 새 버전 배너 뜨게 올림.
+const CACHE = 'sunny-remover-v7';
 const SHELL = ['./', './index.html', './manifest.webmanifest'];
 
 // 설치 시 자동 활성화(skipWaiting)하지 않는다 — 사용자가 [업데이트]를 누를 때까지 대기.
