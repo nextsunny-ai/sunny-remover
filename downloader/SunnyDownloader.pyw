@@ -25,8 +25,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 HOST = socket.gethostname()
 SETTINGS = os.path.join(HERE, f"설정_{HOST}.json")  # PC별 설정(드라이브 공유 충돌 방지)
 LIST_FILE = os.path.join(HERE, f"목록_{HOST}.json")  # PC별 링크 목록(껐다 켜도 유지)
-VERSION = 13  # 업데이트 비교용 내부 번호(사이트 version.json보다 낮으면 공지). 계속 올리기만 한다
-VERSION_LABEL = "1.2.2"  # 사람에게 보이는 버전
+VERSION = 14  # 업데이트 비교용 내부 번호(사이트 version.json보다 낮으면 공지). 계속 올리기만 한다
+VERSION_LABEL = "1.3"  # 사람에게 보이는 버전
 UPDATE_URL = "https://sunnyremover.com/downloader/version.json"
 APP_FILE = os.path.abspath(__file__)
 HISTORY_NAME = "다운로드기록.csv"  # 저장 폴더 안에 쌓이는 출처 기록
@@ -464,7 +464,7 @@ class App:
         cfg = self.load_cfg()
         root.title(f"Sunny Downloader v{VERSION_LABEL}")
         self.set_icon()
-        root.geometry("820x720")
+        root.geometry("840x800")
         root.minsize(640, 560)
         root.option_add("*Font", FONT)
         style = ttk.Style()
@@ -579,49 +579,65 @@ class App:
                     "<Control-Button-1>" if sys.platform == "darwin" else "<Button-3>"):
             entry.bind(seq, popup)
 
-    def build_list(self, f):
-        box = ttk.Frame(f)
-        box.pack(fill="both", expand=True, pady=(8, 2))
-        cols = (("status", "상태", 90), ("title", "제목", 330), ("date", "받은 날", 90), ("url", "링크", 230))
-        self.tree = ttk.Treeview(box, columns=[c[0] for c in cols], show="headings",
-                                 height=10, selectmode="extended")
+    def make_tree(self, parent, height, cols):
+        box = ttk.Frame(parent)
+        box.pack(fill="both", expand=True)
+        tree = ttk.Treeview(box, columns=[c[0] for c in cols], show="headings", height=height,
+                            selectmode="extended")
         for key, text, width in cols:
-            self.tree.heading(key, text=text)
-            self.tree.column(key, width=width, anchor="w", stretch=key in ("title", "url"))
-        sb = ttk.Scrollbar(box, orient="vertical", command=self.tree.yview)
-        self.tree.configure(yscrollcommand=sb.set)
-        self.tree.pack(side="left", fill="both", expand=True)
+            tree.heading(key, text=text)
+            tree.column(key, width=width, anchor="w", stretch=key in ("title", "url"))
+        sb = ttk.Scrollbar(box, orient="vertical", command=tree.yview)
+        tree.configure(yscrollcommand=sb.set)
+        tree.pack(side="left", fill="both", expand=True)
         sb.pack(side="right", fill="y")
-        self.tree.tag_configure(DONE, foreground="#9a9a9a")   # 이미 받은 것 = 흐리게
-        self.tree.tag_configure(FAIL, foreground="#c0392b")
-        self.tree.tag_configure(RUN, foreground="#1f5fbf")
-        self.tree.bind("<Double-1>", lambda e: self.open_selected_link())
-        self.tree.bind("<Delete>", lambda e: self.remove_selected())
-        self.tree.bind("<BackSpace>", lambda e: self.remove_selected())
-        self.bind_paste_keys(self.tree)
+        tree.tag_configure(DONE, foreground="#555555")
+        tree.tag_configure(FAIL, foreground="#c0392b")
+        tree.tag_configure(RUN, foreground="#1f5fbf")
+        tree.bind("<Double-1>", lambda e: self.open_selected_link())
+        tree.bind("<Delete>", lambda e: self.remove_selected())
+        tree.bind("<BackSpace>", lambda e: self.remove_selected())
+        self.bind_paste_keys(tree)
+        return tree
 
+    def attach_menu(self, tree, entries):
         menu = tk.Menu(self.root, tearoff=0)
-        menu.add_command(label="링크 열어보기", command=self.open_selected_link)
-        menu.add_command(label="다시 받기(대기로)", command=self.retry_selected)
-        menu.add_command(label="삭제", command=self.remove_selected)
+        for label, cmd in entries:
+            menu.add_command(label=label, command=cmd)
 
         def popup(event):
-            iid = self.tree.identify_row(event.y)
-            if iid and iid not in self.tree.selection():
-                self.tree.selection_set(iid)
+            iid = tree.identify_row(event.y)
+            if iid and iid not in tree.selection():
+                tree.selection_set(iid)
             menu.tk_popup(event.x_root, event.y_root)
             return "break"
 
         for seq in ("<Button-2>", "<Button-3>", "<Control-Button-1>"):
-            self.tree.bind(seq, popup)
+            tree.bind(seq, popup)
 
-        row = ttk.Frame(f)
-        row.pack(fill="x", pady=(2, 6))
-        self.count = ttk.Label(row, text="")
-        self.count.pack(side="left")
-        ttk.Button(row, text="모두 지우기", command=self.clear_all).pack(side="right")
-        ttk.Button(row, text="완료 항목 정리", command=self.clear_done).pack(side="right", padx=4)
-        ttk.Button(row, text="선택 삭제", command=self.remove_selected).pack(side="right")
+    def build_list(self, f):
+        cols = (("status", "상태", 90), ("title", "제목", 330), ("date", "받은 날", 90), ("url", "링크", 230))
+        head = ttk.Frame(f)
+        head.pack(fill="x", pady=(8, 2))
+        ttk.Label(head, text="받을 목록", font=(FONT[0], 10, "bold")).pack(side="left")
+        self.count = ttk.Label(head, text="", foreground="#666")
+        self.count.pack(side="left", padx=8)
+        ttk.Button(head, text="선택 삭제", command=self.remove_selected).pack(side="right")
+        self.tree = self.make_tree(f, 7, cols)
+        self.attach_menu(self.tree, [("링크 열어보기", self.open_selected_link), ("삭제", self.remove_selected)])
+
+        head = ttk.Frame(f)
+        head.pack(fill="x", pady=(10, 2))
+        ttk.Label(head, text="받은 목록", font=(FONT[0], 10, "bold")).pack(side="left")
+        self.done_count = ttk.Label(head, text="", foreground="#666")
+        self.done_count.pack(side="left", padx=8)
+        ttk.Label(head, text="다시 받으려면 오른쪽 클릭 → 다시 받기", foreground="#888").pack(side="left", padx=8)
+        ttk.Button(head, text="받은 목록 비우기", command=self.clear_done).pack(side="right")
+        self.done_tree = self.make_tree(f, 5, cols)
+        self.attach_menu(self.done_tree, [("다시 받기 (지금 고른 화질로)", self.retry_selected),
+                                          ("링크 열어보기", self.open_selected_link),
+                                          ("저장 폴더 열기", self.open_folder),
+                                          ("목록에서 지우기", self.remove_selected)])
 
     def build_options(self, f, cfg):
         row = ttk.Frame(f)
@@ -765,37 +781,41 @@ class App:
         self.add_urls(urls)
 
     # ---- 목록 ----
+    def tree_of(self, iid):
+        return self.done_tree if self.done_tree.exists(iid) else self.tree
+
     def add_urls(self, urls):
-        known = {it["url"] for it in self.items.values()}
-        added, requeued = [], 0
+        known = {it["url"]: it["status"] for it in self.items.values()}
+        added, already_done, dup = [], 0, 0
         for url in urls:
             if url in known:
-                for iid, it in self.items.items():
-                    if it["url"] == url and it["status"] == DONE:
-                        self.set_item(iid, {"status": WAIT})
-                        requeued += 1
+                if known[url] == DONE:
+                    already_done += 1
+                else:
+                    dup += 1
                 continue
-            known.add(url)
+            known[url] = WAIT
             # 새 링크는 맨 위에(넣은 순서대로)
             added.append((self.insert_item({"url": url, "title": "", "status": WAIT}, index=len(added)), url))
-        skipped = len(urls) - len(added) - requeued
         msg = f"목록에 {len(added)}개 추가"
-        if requeued:
-            msg += f" · 이미 받은 {requeued}개는 다시 받기로 바꿈(지금 고른 화질로 받습니다)"
-        if skipped > 0:
-            msg += f" (이미 목록에 있는 {skipped}개 제외)"
+        if already_done:
+            msg += (f" · 이미 받은 영상 {already_done}개는 건너뜀(다시 받으려면 아래 '받은 목록'에서 "
+                    "오른쪽 클릭 → 다시 받기)")
+        if dup:
+            msg += f" · 이미 받을 목록에 있는 {dup}개 제외"
         self.write(msg)
-        if requeued and not added:
-            self.after_list_change()
         if added:
             self.after_list_change()
             threading.Thread(target=self.title_worker, args=(added,), daemon=True).start()
 
     def insert_item(self, item, index="end"):
-        iid = self.tree.insert("", index)
-        self.items[iid] = {"url": item["url"], "title": item.get("title", ""),
-                           "status": item.get("status", WAIT), "file": item.get("file", ""),
-                           "date": item.get("date", "")}
+        self.seq = getattr(self, "seq", 0) + 1
+        iid = f"i{self.seq}"
+        status = item.get("status", WAIT)
+        tree = self.done_tree if status == DONE else self.tree
+        tree.insert("", index, iid=iid)
+        self.items[iid] = {"url": item["url"], "title": item.get("title", ""), "status": status,
+                           "file": item.get("file", ""), "date": item.get("date", "")}
         self.render(iid)
         return iid
 
@@ -803,41 +823,51 @@ class App:
         it = self.items[iid]
         tag = it["status"].split()[0] if it["status"] else WAIT
         tag = RUN if tag == "받는" else tag
-        self.tree.item(iid, values=(it["status"], it["title"] or NO_TITLE, it["date"], it["url"]),
-                       tags=(tag,))
+        self.tree_of(iid).item(iid, values=(it["status"], it["title"] or NO_TITLE, it["date"], it["url"]),
+                               tags=(tag,))
+
+    def move_to(self, iid, tree, index):
+        if self.tree_of(iid) is tree:
+            tree.move(iid, "", index)
+            return
+        self.tree_of(iid).delete(iid)
+        tree.insert("", index, iid=iid)
 
     def set_item(self, iid, changes):
         if iid not in self.items:  # 받는 도중 목록에서 지운 경우
             return
         self.items[iid] = {**self.items[iid], **changes}
-        self.render(iid)
         status = changes.get("status")
         if status == DONE:
-            self.tree.move(iid, "", "end")   # 받은 것은 아래로 내려 헷갈리지 않게
+            self.move_to(iid, self.done_tree, 0)   # 받은 것은 아래 '받은 목록' 맨 위로
         elif status == WAIT:
-            self.tree.move(iid, "", 0)       # 다시 받을 것은 위로
+            self.move_to(iid, self.tree, 0)        # 다시 받을 것은 위 '받을 목록'으로
+        self.render(iid)
 
     def selected(self):
-        return [i for i in self.tree.selection() if i in self.items]
+        sel = list(self.tree.selection()) + list(self.done_tree.selection())
+        return [i for i in sel if i in self.items]
 
     def remove_selected(self):
         for iid in self.selected():
             if self.busy and self.items[iid]["status"].startswith(RUN):
                 continue  # 지금 받는 항목은 남겨둔다
-            self.tree.delete(iid)
+            self.tree_of(iid).delete(iid)
             del self.items[iid]
         self.after_list_change()
 
     def retry_selected(self):
-        for iid in self.selected():
-            if not self.items[iid]["status"].startswith(RUN):
-                self.set_item(iid, {"status": WAIT})
+        picked = [i for i in self.selected() if not self.items[i]["status"].startswith(RUN)]
+        for iid in picked:
+            self.set_item(iid, {"status": WAIT})
         self.after_list_change()
+        if picked:
+            self.write(f"[다시 받기] {len(picked)}개를 받을 목록에 올렸습니다. 화질: {self.quality.get()} → '다운로드 시작'")
 
     def clear_done(self):
-        for iid in [i for i, it in self.items.items() if it["status"] == DONE]:
-            self.tree.delete(iid)
-            del self.items[iid]
+        for iid in list(self.done_tree.get_children()):
+            self.done_tree.delete(iid)
+            self.items.pop(iid, None)
         self.after_list_change()
 
     def clear_all(self):
@@ -846,6 +876,7 @@ class App:
             return
         if self.items and messagebox.askyesno("확인", "목록을 모두 지울까요?\n(받은 파일과 다운로드 기록은 그대로 남습니다)"):
             self.tree.delete(*self.tree.get_children())
+            self.done_tree.delete(*self.done_tree.get_children())
             self.items.clear()
             self.after_list_change()
 
@@ -859,8 +890,8 @@ class App:
         for it in self.items.values():
             key = RUN if it["status"].startswith(RUN) else it["status"]
             counts[key] = counts.get(key, 0) + 1
-        self.count.configure(text=f"전체 {len(self.items)}개 · 대기 {counts.get(WAIT, 0)} · "
-                                  f"완료 {counts.get(DONE, 0)} · 실패 {counts.get(FAIL, 0)}")
+        self.count.configure(text=f"대기 {counts.get(WAIT, 0)} · 실패 {counts.get(FAIL, 0)}")
+        self.done_count.configure(text=f"{counts.get(DONE, 0)}개")
         self.todo = counts.get(WAIT, 0) + counts.get(FAIL, 0)
         self.refresh_dl_button()
 
@@ -887,14 +918,13 @@ class App:
             iid = self.insert_item(item)
             if not item.get("title"):
                 missing.append((iid, item["url"]))
-        for iid in [i for i in self.tree.get_children() if self.items[i]["status"] == DONE]:
-            self.tree.move(iid, "", "end")   # 받은 것은 아래로
         self.after_list_change()
         if missing:
             threading.Thread(target=self.title_worker, args=(missing,), daemon=True).start()
 
     def save_list(self):
-        data = [self.items[i] for i in self.tree.get_children() if i in self.items]
+        order = list(self.tree.get_children()) + list(self.done_tree.get_children())
+        data = [self.items[i] for i in order if i in self.items]
         try:
             with open(LIST_FILE, "w", encoding="utf-8") as fp:
                 json.dump(data, fp, ensure_ascii=False, indent=1)
@@ -1032,19 +1062,9 @@ class App:
         targets = [(i, self.items[i]["url"]) for i in self.tree.get_children()
                    if i in self.items and self.items[i]["status"] in (WAIT, FAIL)]
         if not targets:
-            done = [i for i in self.tree.get_children() if i in self.items and self.items[i]["status"] == DONE]
-            sel = [i for i in self.selected() if self.items[i]["status"] == DONE]
-            pick = sel or done
-            if not pick:
-                messagebox.showinfo("안내", "받을 항목이 없습니다.\n링크를 목록에 추가하세요.")
-                return
-            what = f"선택한 {len(pick)}개" if sel else f"이미 받은 {len(pick)}개"
-            if not messagebox.askyesno("다시 받기", f"{what}를 지금 고른 화질로 다시 받을까요?\n\n화질: {self.quality.get()}"):
-                return
-            for i in pick:
-                self.set_item(i, {"status": WAIT})
-            self.after_list_change()
-            targets = [(i, self.items[i]["url"]) for i in pick]
+            messagebox.showinfo("안내", "받을 새 링크가 없습니다.\n맨 위 링크 칸에 붙여넣고 엔터를 누르세요.\n\n"
+                                      "(이미 받은 영상을 다시 받으려면 아래 '받은 목록'에서 오른쪽 클릭 → 다시 받기)")
+            return
         folder = self.folder.get().strip()
         try:
             os.makedirs(folder, exist_ok=True)
