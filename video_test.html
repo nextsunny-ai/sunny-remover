@@ -499,47 +499,31 @@ input[type=file]{display:none;}
 
     <aside class="sidebar">
       <div class="block">
-        <div class="block-title"><span class="num">1</span><span data-i18n="secImg">이미지 업스케일</span></div>
-        <button class="btn btn-ghost" id="up_pickBtn" data-i18n="pick">📁 Choose image</button>
-        <input type="file" id="up_fileInput" accept="image/*">
-        <div class="file-meta" id="up_fileMeta"></div>
-        <div class="sub-label" data-i18n="block2">Scale</div>
-        <div class="scale-grid">
-          <button class="scale-btn active" id="up_scale2">
-            <span class="big">2×</span><span class="sm" data-i18n="scale2sub">Recommended</span>
-          </button>
-          <button class="scale-btn" id="up_scale4">
-            <span class="big">4×</span><span class="sm" data-i18n="scale4sub">Slower</span>
-          </button>
-        </div>
-        <div class="size-preview" id="up_sizePreview" style="display:none;">
-          <span id="up_sizeIn">—</span><span class="arrow">→</span><span class="out" id="up_sizeOut">—</span>
-        </div>
-        <div class="warn" id="up_sizeWarn"></div>
+        <div class="block-title"><span class="num">1</span><span data-i18n="block1">Image</span></div>
+        <button class="btn btn-ghost" data-i18n="pick" onclick="document.getElementById('fileInput').click()">📁 Choose image</button>
+        <input type="file" id="fileInput" accept="image/*" onchange="onPickFile(event)">
+        <div class="file-meta" id="fileMeta"></div>
       </div>
 
-      <div class="block" id="up_videoOpts">
-        <div class="block-title"><span class="num">2</span><span data-i18n="secVid">영상 업스케일</span></div>
-        <button class="btn btn-ghost" id="up_vPickBtn" data-i18n="vpick">🎬 영상 선택</button>
-        <input type="file" id="up_vFileInput" accept="video/*,.mp4,.mov,.m4v,.webm">
-        <div class="file-meta" id="up_vFileMeta"></div>
-        <div class="sub-label" data-i18n="block2">배율</div>
-        <div class="scale-grid">
-          <button class="scale-btn active" id="up_vScale2"><span class="big">2×</span><span class="sm" data-i18n="scale2sub">권장</span></button>
-          <button class="scale-btn" id="up_vScale4"><span class="big">4×</span><span class="sm" data-i18n="vScale4sub">최대 4K</span></button>
+      <!-- 수동 (Manual) — 다운로드 없이 바로 = 기본 길이라 2번 -->
+      <div class="block">
+        <div class="block-title"><span class="num">2</span><span data-i18n="secManual">Manual</span></div>
+        <div class="tool-grid">
+          <button class="tool-btn" id="brushBtn" data-i18n="brush" onclick="setTool('brush')">🖌 Brush</button>
+          <button class="tool-btn" id="eraserBtn" data-i18n="eraser" onclick="setTool('eraser')">🩹 Eraser</button>
+          <button class="tool-btn" data-i18n="undo" onclick="undo()">↶ Undo</button>
+          <button class="tool-btn" data-i18n="redo" onclick="redo()">↷ Redo</button>
         </div>
-        <div class="size-preview" id="up_vSizePreview" style="display:none;">
-          <span id="up_vSizeIn">—</span><span class="arrow">→</span><span class="out" id="up_vSizeOut">—</span>
-        </div>
-        <div class="sub-label" data-i18n="qualityTitle">품질</div>
-        <div class="scale-grid">
-          <button class="scale-btn active" id="up_qFast"><span class="big" data-i18n="qFast">빠름</span><span class="sm" data-i18n="qFastSub">영상용 · 권장</span></button>
-          <button class="scale-btn" id="up_qHigh"><span class="big" data-i18n="qHigh">고품질</span><span class="sm" data-i18n="qHighSub">매우 느림</span></button>
-        </div>
-        <div class="vopt-row"><span data-i18n="rangeTitle">구간(초)</span>
-          <input type="number" id="up_vFrom" min="0" step="0.1" value="0"><span>~</span><input type="number" id="up_vTo" min="0" step="0.1"></div>
-        <label class="vopt-check"><input type="checkbox" id="up_vAudio" checked> <span data-i18n="keepAudio">소리 유지</span></label>
-        <div class="vopt-est" id="up_vEstimate"></div>
+        <div class="row-label"><span data-i18n="brushSize">Brush size</span><span class="slider-val" id="brushSizeVal">36 px</span></div>
+        <input type="range" id="brushSize" min="6" max="160" value="36" oninput="onBrushSize(this.value)">
+        <button class="tool-btn" data-i18n="clear" onclick="clearMask()" style="color:var(--danger);border-color:var(--danger-soft);background:var(--danger-soft);">✕ Clear all</button>
+      </div>
+
+      <!-- 자동 (Auto) -->
+      <div class="block">
+        <div class="block-title"><span class="num">3</span><span data-i18n="secAuto">Auto</span></div>
+        <button class="btn btn-auto" id="autoBtn" data-i18n="autoBtn" onclick="autoDetect()">✨ Auto-detect watermark</button>
+        <div class="hint" data-i18n="autoHint">Finds a bright watermark in the bottom-right corner. Touch it up with the brush if needed.</div>
       </div>
 
       <div class="block" style="margin-top:auto;">
@@ -714,14 +698,11 @@ input[type=file]{display:none;}
 
     <aside class="sidebar">
       <div class="block">
-        <div class="block-title"><span class="num">1</span><span data-i18n="block1">Image</span></div>
+        <div class="block-title"><span class="num">1</span><span data-i18n="secImg">이미지 업스케일</span></div>
         <button class="btn btn-ghost" id="up_pickBtn" data-i18n="pick">📁 Choose image</button>
         <input type="file" id="up_fileInput" accept="image/*">
         <div class="file-meta" id="up_fileMeta"></div>
-      </div>
-
-      <div class="block">
-        <div class="block-title"><span class="num">2</span><span data-i18n="block2">Scale</span></div>
+        <div class="sub-label" data-i18n="block2">Scale</div>
         <div class="scale-grid">
           <button class="scale-btn active" id="up_scale2">
             <span class="big">2×</span><span class="sm" data-i18n="scale2sub">Recommended</span>
@@ -736,15 +717,20 @@ input[type=file]{display:none;}
         <div class="warn" id="up_sizeWarn"></div>
       </div>
 
-      <div class="block">
-        <div class="block-title"><span class="num">3</span><span data-i18n="vblock1">영상</span></div>
+      <div class="block" id="up_videoOpts">
+        <div class="block-title"><span class="num">2</span><span data-i18n="secVid">영상 업스케일</span></div>
         <button class="btn btn-ghost" id="up_vPickBtn" data-i18n="vpick">🎬 영상 선택</button>
         <input type="file" id="up_vFileInput" accept="video/*,.mp4,.mov,.m4v,.webm">
         <div class="file-meta" id="up_vFileMeta"></div>
-      </div>
-
-      <div class="block" id="up_videoOpts">
-        <div class="block-title"><span class="num">4</span><span data-i18n="voptTitle">영상 옵션</span></div>
+        <div class="sub-label" data-i18n="block2">배율</div>
+        <div class="scale-grid">
+          <button class="scale-btn active" id="up_vScale2"><span class="big">2×</span><span class="sm" data-i18n="scale2sub">권장</span></button>
+          <button class="scale-btn" id="up_vScale4"><span class="big">4×</span><span class="sm" data-i18n="vScale4sub">최대 4K</span></button>
+        </div>
+        <div class="size-preview" id="up_vSizePreview" style="display:none;">
+          <span id="up_vSizeIn">—</span><span class="arrow">→</span><span class="out" id="up_vSizeOut">—</span>
+        </div>
+        <div class="sub-label" data-i18n="qualityTitle">품질</div>
         <div class="scale-grid">
           <button class="scale-btn active" id="up_qFast"><span class="big" data-i18n="qFast">빠름</span><span class="sm" data-i18n="qFastSub">영상용 · 권장</span></button>
           <button class="scale-btn" id="up_qHigh"><span class="big" data-i18n="qHigh">고품질</span><span class="sm" data-i18n="qHighSub">매우 느림</span></button>
