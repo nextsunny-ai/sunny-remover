@@ -23,7 +23,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 HOST = socket.gethostname()
 SETTINGS = os.path.join(HERE, f"설정_{HOST}.json")  # PC별 설정(드라이브 공유 충돌 방지)
 LIST_FILE = os.path.join(HERE, f"목록_{HOST}.json")  # PC별 링크 목록(껐다 켜도 유지)
-VERSION = 8  # 사이트의 version.json보다 낮으면 새 버전 공지
+VERSION = 9  # 사이트의 version.json보다 낮으면 새 버전 공지
 UPDATE_URL = "https://sunnyremover.com/downloader/version.json"
 APP_FILE = os.path.abspath(__file__)
 HISTORY_NAME = "다운로드기록.csv"  # 저장 폴더 안에 쌓이는 출처 기록
@@ -128,9 +128,14 @@ def clean_title(title):
     return re.sub(TITLE_PREFIX, "", title or "").strip()
 
 
-LOGIN_CHOICES = {"안 씀": None, "크롬": "chrome", "엣지": "edge", "웨일": "whale",
-                 "파이어폭스": "firefox", "사파리": "safari"}
-LOGIN = {"browser": None}  # 로그인 필요한 영상용: 이 브라우저의 로그인 정보를 빌려 쓴다
+COOKIE_FILE = "file"
+if sys.platform == "win32":
+    # 윈도우 크롬·엣지·웨일(127+)은 '앱 전용 암호화'로 다른 프로그램이 로그인 정보를 못 읽는다 → 쿠키 파일
+    LOGIN_CHOICES = {"안 씀": None, "쿠키 파일": COOKIE_FILE, "파이어폭스": "firefox"}
+else:
+    LOGIN_CHOICES = {"안 씀": None, "크롬": "chrome", "사파리": "safari", "엣지": "edge", "웨일": "whale",
+                     "파이어폭스": "firefox", "쿠키 파일": COOKIE_FILE}
+LOGIN = {"browser": None, "cookiefile": ""}  # 로그인 필요한 영상용: 브라우저 또는 쿠키 파일의 로그인 정보
 VIMEO_RE = re.compile(r"https?://(?:www\.)?vimeo\.com/(?:channels/[^/]+/|groups/[^/]+/videos/|"
                       r"showcase/\d+/video/)?(\d+)(?:/([0-9a-f]{6,}))?")
 
@@ -146,7 +151,10 @@ def normalize_url(url):
 
 def base_opts():
     opts = {"quiet": True, "no_warnings": True, "noplaylist": True}
-    if LOGIN["browser"]:
+    if LOGIN["browser"] == COOKIE_FILE:
+        if LOGIN["cookiefile"] and os.path.isfile(LOGIN["cookiefile"]):
+            opts["cookiefile"] = LOGIN["cookiefile"]
+    elif LOGIN["browser"]:
         opts["cookiesfrombrowser"] = (LOGIN["browser"],)
     return opts
 
@@ -425,6 +433,7 @@ class App:
         if self.login.get() not in LOGIN_CHOICES:
             self.login.set("안 씀")
         LOGIN["browser"] = LOGIN_CHOICES[self.login.get()]
+        LOGIN["cookiefile"] = cfg.get("cookiefile", "")
         box = ttk.Combobox(row, textvariable=self.login, values=list(LOGIN_CHOICES), state="readonly", width=9)
         box.pack(side="right")
         box.bind("<<ComboboxSelected>>", lambda e: self.on_login_change())
@@ -647,16 +656,33 @@ class App:
             return {}
 
     def on_login_change(self):
-        LOGIN["browser"] = LOGIN_CHOICES[self.login.get()]
-        self.save_cfg()
-        if LOGIN["browser"]:
+        choice = LOGIN_CHOICES[self.login.get()]
+        if choice == COOKIE_FILE:
+            messagebox.showinfo(
+                "쿠키 파일 고르기",
+                "1. 크롬 확장 'Get cookies.txt LOCALLY'를 설치합니다(처음 한 번).\n"
+                "2. 크롬에서 비메오·인스타 등 그 사이트에 로그인한 채로 확장 아이콘 → Export 를 누릅니다.\n"
+                "3. 저장된 cookies.txt 파일을 다음 창에서 고르세요.\n\n"
+                "※ 이 파일에는 로그인 정보가 들어 있으니 다른 사람에게 보내지 마세요.")
+            path = filedialog.askopenfilename(title="cookies.txt 고르기",
+                                              filetypes=[("쿠키 파일", "*.txt"), ("모든 파일", "*.*")])
+            if not path:
+                self.login.set("안 씀")
+                choice = None
+            else:
+                LOGIN["cookiefile"] = os.path.normpath(path)
+                self.write(f"[알림] 로그인 필요한 영상은 쿠키 파일로 받습니다: {os.path.basename(path)}")
+        elif choice:
             self.write(f"[알림] 로그인 필요한 영상은 {self.login.get()}의 로그인 정보로 받습니다. "
-                       "그 브라우저에서 해당 사이트(인스타·링크드인 등)에 로그인돼 있어야 합니다.")
+                       "그 브라우저에서 해당 사이트에 로그인돼 있어야 합니다.")
+        LOGIN["browser"] = choice
+        self.save_cfg()
 
     def save_cfg(self):
         try:
             with open(SETTINGS, "w", encoding="utf-8") as fp:
-                json.dump({"folder": self.folder.get(), "quality": self.quality.get(), "login": self.login.get()},
+                json.dump({"folder": self.folder.get(), "quality": self.quality.get(), "login": self.login.get(),
+                           "cookiefile": LOGIN["cookiefile"]},
                           fp, ensure_ascii=False, indent=2)
         except OSError:
             pass
