@@ -25,8 +25,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 HOST = socket.gethostname()
 SETTINGS = os.path.join(HERE, f"설정_{HOST}.json")  # PC별 설정(드라이브 공유 충돌 방지)
 LIST_FILE = os.path.join(HERE, f"목록_{HOST}.json")  # PC별 링크 목록(껐다 켜도 유지)
-VERSION = 12  # 업데이트 비교용 내부 번호(사이트 version.json보다 낮으면 공지). 계속 올리기만 한다
-VERSION_LABEL = "1.2.1"  # 사람에게 보이는 버전
+VERSION = 13  # 업데이트 비교용 내부 번호(사이트 version.json보다 낮으면 공지). 계속 올리기만 한다
+VERSION_LABEL = "1.2.2"  # 사람에게 보이는 버전
 UPDATE_URL = "https://sunnyremover.com/downloader/version.json"
 APP_FILE = os.path.abspath(__file__)
 HISTORY_NAME = "다운로드기록.csv"  # 저장 폴더 안에 쌓이는 출처 기록
@@ -1027,6 +1027,8 @@ class App:
     def start(self):
         if self.busy:
             return
+        if extract_urls(self.entry.get()):   # 칸에 넣고 엔터 없이 바로 누른 경우: 먼저 목록에 넣는다
+            self.add_from_entry()
         targets = [(i, self.items[i]["url"]) for i in self.tree.get_children()
                    if i in self.items and self.items[i]["status"] in (WAIT, FAIL)]
         if not targets:
