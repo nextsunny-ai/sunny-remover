@@ -1,7 +1,7 @@
 {
- "version": 11,
- "label": "1.2",
+ "version": 12,
+ "label": "1.2.1",
  "date": "2026-11-25",
  "pyw": "https://sunnyremover.com/downloader/SunnyDownloader.pyw",
- "notes": "큰 다운로드 버튼 · 사이트 로그인 버튼(로그인 필요한 영상)"
+ "notes": "받은 영상을 다른 화질로 다시 받기 · 새 링크는 위, 받은 항목은 아래"
 }

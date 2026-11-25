@@ -25,14 +25,15 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 HOST = socket.gethostname()
 SETTINGS = os.path.join(HERE, f"설정_{HOST}.json")  # PC별 설정(드라이브 공유 충돌 방지)
 LIST_FILE = os.path.join(HERE, f"목록_{HOST}.json")  # PC별 링크 목록(껐다 켜도 유지)
-VERSION = 11  # 업데이트 비교용 내부 번호(사이트 version.json보다 낮으면 공지). 계속 올리기만 한다
-VERSION_LABEL = "1.2"  # 사람에게 보이는 버전
+VERSION = 12  # 업데이트 비교용 내부 번호(사이트 version.json보다 낮으면 공지). 계속 올리기만 한다
+VERSION_LABEL = "1.2.1"  # 사람에게 보이는 버전
 UPDATE_URL = "https://sunnyremover.com/downloader/version.json"
 APP_FILE = os.path.abspath(__file__)
 HISTORY_NAME = "다운로드기록.csv"  # 저장 폴더 안에 쌓이는 출처 기록
 ACCENT, ACCENT_HOVER, ACCENT_BUSY = "#FF6A3D", "#E8552A", "#B8B8B8"   # 다운로드 버튼 색(아이콘 주황)
 FONT = ("맑은 고딕", 10)
 OUTTMPL = "%(title).120s.%(ext)s"  # 원래 제목 그대로(같은 이름이 있으면 다시 받지 않음)
+OUTTMPL_ORIGINAL = "%(title).110s [%(height)sp].%(ext)s"  # 원본 화질: 1080p 파일과 이름이 겹치지 않게
 TITLE_PREFIX = r"(?i)^\s*(?:video|photo|post|reel|reels|story)\s+by\s+"  # 인스타 등 "Video by 계정" 머리말
 URL_RE = re.compile(r"https?://[^\s<>\"']+")
 
@@ -353,7 +354,7 @@ def download_one(url, folder, quality, on_progress=None, simulate=False, cookies
     opts["postprocessors"] = [title_fix] + list(opts.get("postprocessors", []))
     opts.update(base_opts(cookies))
     opts.update({
-        "outtmpl": os.path.join(folder, OUTTMPL),
+        "outtmpl": os.path.join(folder, OUTTMPL if quality.startswith(("편집용", "음악만")) else OUTTMPL_ORIGINAL),
         "noprogress": True,
         "windowsfilenames": True,
     })
@@ -591,7 +592,7 @@ class App:
         self.tree.configure(yscrollcommand=sb.set)
         self.tree.pack(side="left", fill="both", expand=True)
         sb.pack(side="right", fill="y")
-        self.tree.tag_configure(DONE, foreground="#1a7f37")
+        self.tree.tag_configure(DONE, foreground="#9a9a9a")   # 이미 받은 것 = 흐리게
         self.tree.tag_configure(FAIL, foreground="#c0392b")
         self.tree.tag_configure(RUN, foreground="#1f5fbf")
         self.tree.bind("<Double-1>", lambda e: self.open_selected_link())
@@ -766,23 +767,32 @@ class App:
     # ---- 목록 ----
     def add_urls(self, urls):
         known = {it["url"] for it in self.items.values()}
-        added = []
+        added, requeued = [], 0
         for url in urls:
             if url in known:
+                for iid, it in self.items.items():
+                    if it["url"] == url and it["status"] == DONE:
+                        self.set_item(iid, {"status": WAIT})
+                        requeued += 1
                 continue
             known.add(url)
-            added.append((self.insert_item({"url": url, "title": "", "status": WAIT}), url))
-        skipped = len(urls) - len(added)
+            # 새 링크는 맨 위에(넣은 순서대로)
+            added.append((self.insert_item({"url": url, "title": "", "status": WAIT}, index=len(added)), url))
+        skipped = len(urls) - len(added) - requeued
         msg = f"목록에 {len(added)}개 추가"
-        if skipped:
+        if requeued:
+            msg += f" · 이미 받은 {requeued}개는 다시 받기로 바꿈(지금 고른 화질로 받습니다)"
+        if skipped > 0:
             msg += f" (이미 목록에 있는 {skipped}개 제외)"
         self.write(msg)
+        if requeued and not added:
+            self.after_list_change()
         if added:
             self.after_list_change()
             threading.Thread(target=self.title_worker, args=(added,), daemon=True).start()
 
-    def insert_item(self, item):
-        iid = self.tree.insert("", "end")
+    def insert_item(self, item, index="end"):
+        iid = self.tree.insert("", index)
         self.items[iid] = {"url": item["url"], "title": item.get("title", ""),
                            "status": item.get("status", WAIT), "file": item.get("file", ""),
                            "date": item.get("date", "")}
@@ -801,6 +811,11 @@ class App:
             return
         self.items[iid] = {**self.items[iid], **changes}
         self.render(iid)
+        status = changes.get("status")
+        if status == DONE:
+            self.tree.move(iid, "", "end")   # 받은 것은 아래로 내려 헷갈리지 않게
+        elif status == WAIT:
+            self.tree.move(iid, "", 0)       # 다시 받을 것은 위로
 
     def selected(self):
         return [i for i in self.tree.selection() if i in self.items]
@@ -872,6 +887,8 @@ class App:
             iid = self.insert_item(item)
             if not item.get("title"):
                 missing.append((iid, item["url"]))
+        for iid in [i for i in self.tree.get_children() if self.items[i]["status"] == DONE]:
+            self.tree.move(iid, "", "end")   # 받은 것은 아래로
         self.after_list_change()
         if missing:
             threading.Thread(target=self.title_worker, args=(missing,), daemon=True).start()
@@ -1013,8 +1030,19 @@ class App:
         targets = [(i, self.items[i]["url"]) for i in self.tree.get_children()
                    if i in self.items and self.items[i]["status"] in (WAIT, FAIL)]
         if not targets:
-            messagebox.showinfo("안내", "받을 항목이 없습니다.\n링크를 목록에 추가하세요. (대기·실패 항목만 받습니다)")
-            return
+            done = [i for i in self.tree.get_children() if i in self.items and self.items[i]["status"] == DONE]
+            sel = [i for i in self.selected() if self.items[i]["status"] == DONE]
+            pick = sel or done
+            if not pick:
+                messagebox.showinfo("안내", "받을 항목이 없습니다.\n링크를 목록에 추가하세요.")
+                return
+            what = f"선택한 {len(pick)}개" if sel else f"이미 받은 {len(pick)}개"
+            if not messagebox.askyesno("다시 받기", f"{what}를 지금 고른 화질로 다시 받을까요?\n\n화질: {self.quality.get()}"):
+                return
+            for i in pick:
+                self.set_item(i, {"status": WAIT})
+            self.after_list_change()
+            targets = [(i, self.items[i]["url"]) for i in pick]
         folder = self.folder.get().strip()
         try:
             os.makedirs(folder, exist_ok=True)
