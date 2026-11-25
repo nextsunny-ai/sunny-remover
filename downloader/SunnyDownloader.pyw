@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """이 창에서 하는 일: 영상 링크를 목록에 모아두고 편집용 MP4/4K/MP3로 받는 로컬 다운로더(목록·기록 저장)."""
+import calendar
 import csv
 import datetime
 import json
@@ -8,6 +9,7 @@ import queue
 import re
 import shutil
 import socket
+import time
 import subprocess
 import sys
 import threading
@@ -23,10 +25,12 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 HOST = socket.gethostname()
 SETTINGS = os.path.join(HERE, f"설정_{HOST}.json")  # PC별 설정(드라이브 공유 충돌 방지)
 LIST_FILE = os.path.join(HERE, f"목록_{HOST}.json")  # PC별 링크 목록(껐다 켜도 유지)
-VERSION = 10  # 사이트의 version.json보다 낮으면 새 버전 공지
+VERSION = 11  # 업데이트 비교용 내부 번호(사이트 version.json보다 낮으면 공지). 계속 올리기만 한다
+VERSION_LABEL = "1.2"  # 사람에게 보이는 버전
 UPDATE_URL = "https://sunnyremover.com/downloader/version.json"
 APP_FILE = os.path.abspath(__file__)
 HISTORY_NAME = "다운로드기록.csv"  # 저장 폴더 안에 쌓이는 출처 기록
+ACCENT, ACCENT_HOVER, ACCENT_BUSY = "#FF6A3D", "#E8552A", "#B8B8B8"   # 다운로드 버튼 색(아이콘 주황)
 FONT = ("맑은 고딕", 10)
 OUTTMPL = "%(title).120s.%(ext)s"  # 원래 제목 그대로(같은 이름이 있으면 다시 받지 않음)
 TITLE_PREFIX = r"(?i)^\s*(?:video|photo|post|reel|reels|story)\s+by\s+"  # 인스타 등 "Video by 계정" 머리말
@@ -165,15 +169,107 @@ def downloads_cookie_files():
     return sorted(paths, key=os.path.getmtime)
 
 
+LOGIN_DIR = os.path.join(LOCAL_DIR, "logins")          # 로그인 창이 저장한 사이트별 쿠키
+WEBVIEW_DIR = os.path.join(LOCAL_DIR, "webview")        # 로그인 창 브라우저 저장소(다음에도 로그인 유지)
+LOGIN_URLS = {"vimeo.com": "https://vimeo.com/log_in",
+              "instagram.com": "https://www.instagram.com/accounts/login/",
+              "linkedin.com": "https://www.linkedin.com/login",
+              "facebook.com": "https://www.facebook.com/login",
+              "tiktok.com": "https://www.tiktok.com/login",
+              "x.com": "https://x.com/i/flow/login", "twitter.com": "https://x.com/i/flow/login"}
+
+
+def site_of(url):
+    host = re.sub(r"^https?://", "", url).split("/")[0].lower()
+    host = re.sub(r"^(www|m|player)\.", "", host)
+    return host
+
+
+def login_url_for(host):
+    return LOGIN_URLS.get(host, f"https://{host}/")
+
+
+def login_cookie_files():
+    try:
+        return sorted((os.path.join(LOGIN_DIR, n) for n in os.listdir(LOGIN_DIR) if n.endswith(".txt")),
+                      key=os.path.getmtime)
+    except OSError:
+        return []
+
+
+def cookie_expiry(value):
+    """쿠키 만료 시각 → 초. 윈도우는 문자열, 맥은 날짜 객체(NSDate)로 온다."""
+    try:
+        if not value:
+            return 0
+        if isinstance(value, (int, float)):
+            return min(2147483647, int(value))
+        if isinstance(value, str):
+            sec = calendar.timegm(time.strptime(value, "%a, %d %b %Y %H:%M:%S GMT"))
+        else:
+            sec = int(value.timeIntervalSince1970())
+        return min(2147483647, sec) if sec > 0 else 0   # 0001년 같은 값 = 세션 쿠키
+    except (ValueError, OverflowError, AttributeError, TypeError):
+        return 0
+
+
+def cookies_to_netscape(cookies, host):
+    """pywebview가 돌려준 쿠키(SimpleCookie 목록)를 yt-dlp가 읽는 cookies.txt 형식으로."""
+    lines = ["# Netscape HTTP Cookie File"]
+    for jar in cookies:
+        for name, mo in jar.items():
+            dom = mo["domain"] or host
+            exp = cookie_expiry(mo["expires"])
+            lines.append("\t".join([dom, "TRUE" if dom.startswith(".") else "FALSE", mo["path"] or "/",
+                                    "TRUE" if mo["secure"] else "FALSE", str(exp), name, mo.value]))
+    return lines
+
+
+def run_login_window(url, out_path):
+    """(별도 프로세스) 사이트 로그인 창. 로그인하는 동안 쿠키를 계속 저장하고, 창을 닫으면 끝."""
+    import webview  # 로그인 창을 쓸 때만 필요
+    host = site_of(url)
+    os.makedirs(os.path.dirname(out_path), exist_ok=True)
+
+    def watch(win):
+        while True:
+            try:
+                ck = win.get_cookies()
+            except Exception:  # noqa: BLE001 - 창이 닫히면 끝
+                return
+            try:
+                lines = cookies_to_netscape(ck or [], host)
+            except Exception:  # noqa: BLE001 - 형식이 낯선 쿠키 하나 때문에 저장을 멈추지 않는다
+                lines = []
+            if len(lines) > 1:
+                with open(out_path, "w", encoding="utf-8") as fp:
+                    fp.write("\n".join(lines) + "\n")
+            time.sleep(2)
+
+    title = f"{host} 로그인 — 로그인을 마치면 이 창을 닫으세요 (Sunny Downloader)"
+    win = webview.create_window(title, url, width=1000, height=780)
+    try:
+        webview.start(watch, win, private_mode=False, storage_path=WEBVIEW_DIR)
+    except Exception:  # noqa: BLE001 - 저장소가 잠겨 있으면 이번만 임시 창으로
+        win = webview.create_window(title, url, width=1000, height=780)
+        webview.start(watch, win, private_mode=True)
+
+
 def merged_cookie_file():
     """여러 사이트 쿠키 파일을 하나로 합쳐 이 PC 전용 폴더에 둔다(공유 드라이브에는 두지 않는다)."""
-    files = downloads_cookie_files()
+    files = downloads_cookie_files() + login_cookie_files()
     if not files:
         return None
     lines = ["# Netscape HTTP Cookie File"]
     for f in files:  # 나중 파일이 앞의 같은 쿠키를 덮어쓴다
         with open(f, encoding="utf-8", errors="ignore") as fp:
-            lines += [ln.rstrip("\n") for ln in fp if ln.strip() and not ln.startswith("# ")]
+            for ln in fp:
+                if not ln.strip() or ln.startswith("# "):
+                    continue
+                parts = ln.rstrip("\n").split("\t")
+                if len(parts) == 7 and parts[4].lstrip("-").isdigit() and int(parts[4]) < 0:
+                    parts[4] = "0"  # 잘못된 만료값(음수)은 세션 쿠키로
+                lines.append("\t".join(parts))
     os.makedirs(LOCAL_DIR, exist_ok=True)
     out = os.path.join(LOCAL_DIR, "cookies_auto.txt")
     with open(out, "w", encoding="utf-8") as fp:
@@ -365,7 +461,7 @@ class App:
         self.busy = False
         self.items = {}  # 목록 행 id -> {url, title, status, file, date}
         cfg = self.load_cfg()
-        root.title("Sunny Downloader")
+        root.title(f"Sunny Downloader v{VERSION_LABEL}")
         self.set_icon()
         root.geometry("820x720")
         root.minsize(640, 560)
@@ -391,7 +487,7 @@ class App:
             self.write("[경고] 맥 기본 파이썬(Tk %s)은 글자 입력이 안 됩니다. 바탕화면 앱으로 실행하거나 "
                        "처음설치_맥.command를 다시 실행하세요." % tk.TkVersion)
         self.write("링크 칸에 붙여넣고(Ctrl+V) 엔터를 누르면 목록에 쌓입니다. "
-                   "다 모았으면 '목록 다운로드'를 누르세요.")
+                   "다 모았으면 '다운로드 시작'을 누르세요.")
         self.root.after(100, self.pump)
         self.root.after(300, self.bring_to_front)
         if not os.environ.get("SUNNY_NO_UPDATE"):
@@ -404,7 +500,7 @@ class App:
         self.new_info = info
         for w in self.banner.winfo_children():
             w.destroy()
-        msg = f"새 버전 v{info['version']}이 나왔습니다.  {info.get('notes', '')}".strip()
+        msg = f"새 버전 v{info.get('label', info['version'])}이 나왔습니다.  {info.get('notes', '')}".strip()
         tk.Label(self.banner, text=msg, bg="#ff6a3d", fg="white", anchor="w",
                  font=(FONT[0], 11, "bold"), wraplength=560, justify="left").pack(side="left", padx=12, pady=8)
         self.btn_newver = ttk.Button(self.banner, text="지금 업데이트", command=self.apply_new_version)
@@ -448,15 +544,20 @@ class App:
     def build_input(self, f):
         row = ttk.Frame(f)
         row.pack(fill="x")
-        ttk.Label(row, text="링크").pack(side="left")
+        ttk.Label(row, text="링크", font=(FONT[0], 11, "bold")).pack(side="left")
         self.entry = ttk.Entry(row, font=(FONT[0], 11))
         self.entry.pack(side="left", fill="x", expand=True, padx=(6, 6), ipady=4)
         self.entry.bind("<Return>", lambda e: self.add_from_entry())
         ttk.Button(row, text="추가", style="Big.TButton", command=self.add_from_entry).pack(side="left")
-        ttk.Button(row, text="복사한 링크 바로 추가",
-                   command=self.paste_clipboard).pack(side="left", padx=(6, 0))
         self.bind_paste_keys(self.entry, into_entry=True)
         self.bind_entry_menu(self.entry)
+        # 가장 눈에 띄는 다운로드 버튼(맥에서도 색이 보이도록 Label로 만든다)
+        self.btn_dl = tk.Label(f, text="⬇  다운로드 시작", bg=ACCENT, fg="white", cursor="hand2",
+                               font=(FONT[0], 14, "bold"), pady=10)
+        self.btn_dl.pack(fill="x", pady=(10, 2))
+        self.btn_dl.bind("<Button-1>", lambda e: self.start())
+        self.btn_dl.bind("<Enter>", lambda e: self.busy or self.btn_dl.configure(bg=ACCENT_HOVER))
+        self.btn_dl.bind("<Leave>", lambda e: self.busy or self.btn_dl.configure(bg=ACCENT))
 
     def bind_entry_menu(self, entry):
         """입력칸 오른쪽 클릭 메뉴: 붙여넣기·복사·잘라내기·전체 선택·지우기."""
@@ -536,8 +637,9 @@ class App:
             self.login.set("자동")
         LOGIN["browser"] = LOGIN_CHOICES[self.login.get()]
         LOGIN["cookiefile"] = cfg.get("cookiefile", "")
+        ttk.Button(row, text="🔑 사이트 로그인", command=self.ask_site_login).pack(side="right")
         box = ttk.Combobox(row, textvariable=self.login, values=list(LOGIN_CHOICES), state="readonly", width=9)
-        box.pack(side="right")
+        box.pack(side="right", padx=(0, 8))
         box.bind("<<ComboboxSelected>>", lambda e: self.on_login_change())
         ttk.Label(row, text="로그인 필요한 영상").pack(side="right", padx=(0, 6))
 
@@ -552,11 +654,42 @@ class App:
 
         row = ttk.Frame(f)
         row.pack(fill="x", pady=6)
-        self.btn_dl = ttk.Button(row, text="목록 다운로드", style="Big.TButton", command=self.start)
-        self.btn_dl.pack(side="left")
-        ttk.Label(row, text="대기·실패 항목만 차례로 받습니다").pack(side="left", padx=8)
+        ttk.Label(row, text="다운로드 시작을 누르면 대기·실패 항목만 차례로 받습니다", foreground="#666").pack(side="left")
         self.btn_up = ttk.Button(row, text="안 받아질 때: 엔진 업데이트", command=self.update)
         self.btn_up.pack(side="right")
+
+
+    def ask_site_login(self):
+        """어느 사이트에 로그인할지 고르는 작은 창 → 로그인 창."""
+        win = tk.Toplevel(self.root)
+        win.title("사이트 로그인")
+        win.transient(self.root)
+        win.resizable(False, False)
+        body = ttk.Frame(win, padding=16)
+        body.pack(fill="both", expand=True)
+        ttk.Label(body, text="로그인해야 보이는 영상을 받으려면, 그 사이트에 한 번 로그인해 두세요.",
+                  font=(FONT[0], 10, "bold")).pack(anchor="w")
+        ttk.Label(body, text="로그인 창에서 평소처럼 로그인한 뒤 창을 닫으면 저장됩니다. 비밀번호는 저장하지 않습니다.\n"
+                             "구글 계정으로 가입한 사이트는 구글이 막을 수 있습니다 → 그때는 크롬 확장 방법을 쓰세요.",
+                  foreground="#555", justify="left").pack(anchor="w", pady=(4, 12))
+        grid = ttk.Frame(body)
+        grid.pack(fill="x")
+        sites = [("비메오", "vimeo.com"), ("인스타그램", "instagram.com"), ("링크드인", "linkedin.com"),
+                 ("페이스북", "facebook.com"), ("틱톡", "tiktok.com"), ("X(트위터)", "x.com")]
+
+        def go(host):
+            win.destroy()
+            self.open_login_window(host, lambda: self.write(f"[로그인] 이제 {host}의 로그인 영상도 받을 수 있습니다."))
+
+        for i, (label, host) in enumerate(sites):
+            ttk.Button(grid, text=label, width=14, command=lambda h=host: go(h)).grid(row=i // 3, column=i % 3, padx=4, pady=4)
+        other = ttk.Frame(body)
+        other.pack(fill="x", pady=(10, 0))
+        ttk.Label(other, text="다른 사이트 주소").pack(side="left")
+        ent = ttk.Entry(other, width=28)
+        ent.pack(side="left", padx=6)
+        ttk.Button(other, text="로그인", command=lambda: go(site_of(ent.get().strip() or "x"))).pack(side="left")
+        ttk.Button(body, text="크롬 확장 방법(구글 계정용)", command=lambda: webbrowser.open(STORE_URL)).pack(anchor="w", pady=(12, 0))
 
     def build_log(self, f):
         self.bar = ttk.Progressbar(f, maximum=100)
@@ -713,6 +846,16 @@ class App:
             counts[key] = counts.get(key, 0) + 1
         self.count.configure(text=f"전체 {len(self.items)}개 · 대기 {counts.get(WAIT, 0)} · "
                                   f"완료 {counts.get(DONE, 0)} · 실패 {counts.get(FAIL, 0)}")
+        self.todo = counts.get(WAIT, 0) + counts.get(FAIL, 0)
+        self.refresh_dl_button()
+
+    def refresh_dl_button(self):
+        if self.busy:
+            self.btn_dl.configure(text="⏳  받는 중…  (끝나면 다시 누를 수 있습니다)", bg=ACCENT_BUSY, cursor="watch")
+        else:
+            n = getattr(self, "todo", 0)
+            self.btn_dl.configure(text=f"⬇  다운로드 시작  ({n}개)" if n else "⬇  다운로드 시작",
+                                  bg=ACCENT, cursor="hand2")
 
     def load_list(self):
         try:
@@ -824,8 +967,8 @@ class App:
     def set_busy(self, busy):
         self.busy = busy
         state = "disabled" if busy else "normal"
-        self.btn_dl.configure(state=state)
         self.btn_up.configure(state=state)
+        self.refresh_dl_button()
 
     def pump(self):
         """작업 스레드가 보낸 메시지를 GUI 스레드에서 처리."""
@@ -846,6 +989,13 @@ class App:
                 elif kind == "restart":
                     self.restart()
                     return
+                elif kind == "login_done":
+                    host, saved, on_done = val
+                    if saved:
+                        self.write(f"[로그인] {host} 로그인 정보를 저장했습니다. 다시 받습니다.")
+                        on_done()
+                    else:
+                        self.write(f"[로그인] {host} 로그인 정보가 저장되지 않았습니다. 로그인한 뒤 창을 닫아 주세요.")
                 elif kind == "loginhelp":
                     self.show_login_help(val)
                 elif kind == "done":
@@ -858,6 +1008,8 @@ class App:
 
     # ---- 다운로드 ----
     def start(self):
+        if self.busy:
+            return
         targets = [(i, self.items[i]["url"]) for i in self.tree.get_children()
                    if i in self.items and self.items[i]["status"] in (WAIT, FAIL)]
         if not targets:
@@ -928,25 +1080,17 @@ class App:
         body.pack(fill="both", expand=True)
         ttk.Label(body, text=f"로그인해야 받을 수 있는 영상이 {len(urls)}개 있습니다 ({', '.join(hosts)})",
                   font=(FONT[0], 11, "bold")).pack(anchor="w")
-        mac_tip = ("맥은 크롬·사파리에 그 사이트로 로그인돼 있으면 자동으로 시도합니다. "
-                   "'키체인 접근 허용' 창이 뜨면 '허용'을 누르세요. 그래도 안 되면 아래 순서대로 하세요.\n\n"
-                   if sys.platform == "darwin" else "")
-        steps = (mac_tip +
-                 "처음 한 번만 하면 됩니다.\n\n"
-                 "1. 아래 [확장 설치 페이지 열기] → 크롬에서 'Chrome에 추가'\n"
-                 "2. 크롬에서 그 사이트(" + ", ".join(hosts) + ")에 로그인한 상태로\n"
-                 "    주소창 오른쪽 퍼즐 모양 → 'Get cookies.txt LOCALLY' → 'Export'\n"
-                 "    (다운로드 폴더에 ..._cookies.txt 파일이 저장됩니다)\n"
-                 "3. 아래 [다시 받기]를 누르면 그 파일을 자동으로 찾아 받습니다.\n\n"
-                 "※ 쿠키 파일은 로그인 상태를 빌려주는 '출입증'입니다. 다른 사람에게 보내지 마세요.\n"
-                 "※ 몇 주 뒤 다시 안 받아지면 2번(Export)만 한 번 더 하면 됩니다.")
-        ttk.Label(body, text=steps, justify="left", wraplength=560).pack(anchor="w", pady=(10, 14))
+        guide = ("처음 한 번만 하면 됩니다. 아래 로그인 버튼을 누르면 로그인 창이 열립니다.\n"
+                 "평소처럼 아이디·비밀번호로 로그인한 뒤 그 창을 닫으면, 자동으로 다시 받습니다.\n\n"
+                 "※ 비밀번호는 이 프로그램에 저장되지 않습니다(사이트 로그인 화면에 직접 입력).\n"
+                 "※ 로그인 상태는 이 PC에만 남습니다. 몇 주 뒤 다시 안 되면 한 번 더 로그인하세요.\n"
+                 "※ 구글·애플 계정으로 가입한 사이트는 구글이 이 창의 로그인을 막을 수 있습니다.\n"
+                 "    그럴 땐 맨 아래 '크롬 확장' 방법을 쓰면 크롬에 로그인된 상태를 그대로 씁니다.")
+        ttk.Label(body, text=guide, justify="left", wraplength=580).pack(anchor="w", pady=(10, 14))
         row = ttk.Frame(body)
         row.pack(fill="x")
-        ttk.Button(row, text="확장 설치 페이지 열기", command=lambda: webbrowser.open(STORE_URL)).pack(side="left")
 
         def retry():
-            win.destroy()
             if self.login.get() != "자동":
                 self.login.set("자동")
                 self.on_login_change()
@@ -956,9 +1100,46 @@ class App:
             self.after_list_change()
             self.start()
 
-        ttk.Button(row, text="다시 받기", style="Big.TButton", command=retry).pack(side="left", padx=8)
+        def do_login(host):
+            win.destroy()
+            self.open_login_window(host, retry)
+
+        for host in hosts[:3]:
+            ttk.Button(row, text=f"{host} 로그인하기", style="Big.TButton",
+                       command=lambda h=host: do_login(h)).pack(side="left", padx=(0, 8))
         ttk.Button(row, text="닫기", command=win.destroy).pack(side="right")
+
+        alt = ttk.Frame(body)
+        alt.pack(fill="x", pady=(14, 0))
+        ttk.Label(alt, text="로그인 창이 안 열리면: 크롬 확장 'Get cookies.txt LOCALLY'로 그 사이트에서 Export → ",
+                  foreground="#666").pack(side="left")
+        ttk.Button(alt, text="확장 페이지", command=lambda: webbrowser.open(STORE_URL)).pack(side="left")
+        ttk.Button(alt, text="다시 받기", command=lambda: (win.destroy(), retry())).pack(side="left", padx=4)
         win.grab_set()
+
+    def open_login_window(self, host, on_done):
+        out = os.path.join(LOGIN_DIR, f"{host}.txt")
+        self.write(f"[로그인] {host} 로그인 창을 엽니다. 로그인을 마치면 그 창을 닫으세요.")
+
+        def job():
+            py = sys.executable
+            pip_py = py[:-len("pythonw.exe")] + "python.exe" if py.lower().endswith("pythonw.exe") else py
+            flags = 0x08000000 if sys.platform == "win32" else 0
+            ok = subprocess.run([pip_py, "-c", "import webview"], capture_output=True, creationflags=flags).returncode == 0
+            if not ok:
+                self.q.put(("log", "[로그인] 처음 한 번 로그인 창 부품을 설치합니다(1~2분)…"))
+                r = subprocess.run([pip_py, "-m", "pip", "install", "-q", "pywebview"], capture_output=True,
+                                   text=True, encoding="utf-8", errors="replace", creationflags=flags)
+                if r.returncode != 0:
+                    self.q.put(("log", "[로그인] 부품 설치 실패 — 인터넷 연결을 확인하세요. "
+                                       "(대신 안내 창의 확장 프로그램 방법을 쓸 수 있습니다)"))
+                    return
+            before = os.path.getmtime(out) if os.path.exists(out) else 0
+            subprocess.run([py, APP_FILE, "--login", login_url_for(host), out], creationflags=0)
+            saved = os.path.exists(out) and os.path.getmtime(out) > before
+            self.q.put(("login_done", (host, saved, on_done)))
+
+        threading.Thread(target=job, daemon=True).start()
 
     # ---- 엔진 업데이트 ----
     def update(self):
@@ -985,6 +1166,9 @@ class App:
 
 
 def main():
+    if len(sys.argv) >= 4 and sys.argv[1] == "--login":  # 로그인 창 전용 프로세스
+        run_login_window(sys.argv[2], sys.argv[3])
+        return
     root = tk.Tk()
     App(root)
     root.mainloop()

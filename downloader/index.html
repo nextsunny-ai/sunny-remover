@@ -78,7 +78,7 @@ main{max-width:860px;margin:0 auto;padding:72px 24px;}
     <img src="icon.png" alt="" width="64" height="64">
     <div>
       <h1>Sunny Downloader</h1>
-      <p><span id="ver">v10</span> · 유튜브 · 비메오 · 인스타그램 · 틱톡 · X · 페이스북 등</p>
+      <p><span id="ver">v1.2</span> · 유튜브 · 비메오 · 인스타그램 · 틱톡 · X · 페이스북 등</p>
     </div>
   </div>
 
@@ -102,7 +102,7 @@ main{max-width:860px;margin:0 auto;padding:72px 24px;}
 </main>
 <script>
 fetch('version.json', {cache:'no-store'}).then(r => r.json()).then(v => {
-  document.getElementById('ver').textContent = 'v' + v.version;
+  document.getElementById('ver').textContent = 'v' + (v.label || v.version);
 }).catch(() => {});
 </script>
 </body>
