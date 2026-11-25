@@ -23,7 +23,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 HOST = socket.gethostname()
 SETTINGS = os.path.join(HERE, f"설정_{HOST}.json")  # PC별 설정(드라이브 공유 충돌 방지)
 LIST_FILE = os.path.join(HERE, f"목록_{HOST}.json")  # PC별 링크 목록(껐다 켜도 유지)
-VERSION = 6  # 사이트의 version.json보다 낮으면 새 버전 공지
+VERSION = 7  # 사이트의 version.json보다 낮으면 새 버전 공지
 UPDATE_URL = "https://sunnyremover.com/downloader/version.json"
 APP_FILE = os.path.abspath(__file__)
 HISTORY_NAME = "다운로드기록.csv"  # 저장 폴더 안에 쌓이는 출처 기록
@@ -95,8 +95,14 @@ def friendly_error(exc):
                               "removed", "does not exist", "unable to download webpage",
                               "http error 404")):
         return "링크를 열 수 없습니다 — 비공개/삭제 영상이거나 주소를 확인하세요"
-    if "sign in" in low or ("age" in low and "restrict" in low):
-        return "로그인이 필요한 영상입니다 (연령 제한/멤버십)"
+    if "drm" in low:
+        return "복제 방지(DRM)가 걸린 영상이라 받을 수 없습니다 — 화면 녹화로 대신하세요"
+    if "cookie" in low and any(k in low for k in ("decrypt", "could not", "copy", "database", "permission")):
+        return ("브라우저 로그인 정보를 읽지 못했습니다 — 그 브라우저 창을 모두 닫고 다시 받거나, "
+                "'로그인 필요한 영상'에서 다른 브라우저(파이어폭스 등)를 고르세요")
+    if any(k in low for k in ("sign in", "logged-in", "login", "log in", "cookies")) or ("age" in low and "restrict" in low):
+        return ("로그인이 필요한 영상입니다 — '로그인 필요한 영상'에서 평소 그 사이트에 로그인해 둔 "
+                "브라우저를 고른 뒤 다시 받으세요")
     if "ffmpeg" in low:
         return "ffmpeg 문제로 합치기에 실패했습니다 — ffmpeg 설치를 확인하세요"
     if "getaddrinfo" in low or "urlopen error" in low or "timed out" in low:
@@ -121,11 +127,34 @@ def clean_title(title):
     return re.sub(TITLE_PREFIX, "", title or "").strip()
 
 
+LOGIN_CHOICES = {"안 씀": None, "크롬": "chrome", "엣지": "edge", "웨일": "whale",
+                 "파이어폭스": "firefox", "사파리": "safari"}
+LOGIN = {"browser": None}  # 로그인 필요한 영상용: 이 브라우저의 로그인 정보를 빌려 쓴다
+VIMEO_RE = re.compile(r"https?://(?:www\.)?vimeo\.com/(?:channels/[^/]+/|groups/[^/]+/videos/|"
+                      r"showcase/\d+/video/)?(\d+)(?:/([0-9a-f]{6,}))?")
+
+
+def normalize_url(url):
+    """비메오 일반 주소는 로그인을 요구해서, 로그인 없이 되는 플레이어 주소로 바꾼다."""
+    m = VIMEO_RE.match(url)
+    if m and not LOGIN["browser"]:
+        vid, h = m.group(1), m.group(2)
+        return f"https://player.vimeo.com/video/{vid}" + (f"?h={h}" if h else "")
+    return url
+
+
+def base_opts():
+    opts = {"quiet": True, "no_warnings": True, "noplaylist": True}
+    if LOGIN["browser"]:
+        opts["cookiesfrombrowser"] = (LOGIN["browser"],)
+    return opts
+
+
 def fetch_title(url):
     """다운로드 없이 제목만 확인."""
-    opts = {"quiet": True, "no_warnings": True, "noplaylist": True, "skip_download": True}
+    opts = {**base_opts(), "skip_download": True}
     with yt_dlp.YoutubeDL(opts) as ydl:
-        info = ydl.extract_info(url, download=False, process=False)
+        info = ydl.extract_info(normalize_url(url), download=False, process=False)
     return clean_title((info or {}).get("title"))
 
 
@@ -135,14 +164,13 @@ def download_one(url, folder, quality, on_progress=None, simulate=False):
     title_fix = {"key": "MetadataParser", "when": "pre_process",
                  "actions": [(MetadataParserPP.Actions.REPLACE, "title", TITLE_PREFIX, "")]}
     opts["postprocessors"] = [title_fix] + list(opts.get("postprocessors", []))
+    opts.update(base_opts())
     opts.update({
         "outtmpl": os.path.join(folder, OUTTMPL),
-        "noplaylist": True,
-        "quiet": True,
-        "no_warnings": True,
         "noprogress": True,
         "windowsfilenames": True,
     })
+    url = normalize_url(url)
     ffmpeg = find_ffmpeg()
     if ffmpeg:
         opts["ffmpeg_location"] = ffmpeg
@@ -151,6 +179,20 @@ def download_one(url, folder, quality, on_progress=None, simulate=False):
         opts["skip_download"] = True
     if on_progress:
         opts["progress_hooks"] = [on_progress]
+    try:
+        return _run_download(opts, url, quality, simulate)
+    except yt_dlp.utils.DownloadError as exc:
+        if "drm" not in str(exc).lower():
+            raise
+        # 비메오 등: DASH 화질에만 복제 방지(DRM)가 걸린 경우 → HLS 스트림으로 다시 시도
+        h = "[height<=1080]" if quality.startswith("편집용") else ""
+        hls = "[protocol^=m3u8]"
+        opts["format"] = ("ba" + hls + "/b" + hls) if quality.startswith("음악만") else \
+            f"bv*{hls}{h}+ba{hls}/b{hls}{h}"
+        return _run_download(opts, url, quality, simulate)
+
+
+def _run_download(opts, url, quality, simulate):
     with yt_dlp.YoutubeDL(opts) as ydl:
         info = ydl.extract_info(url, download=not simulate)
         if info is None:
@@ -378,6 +420,14 @@ class App:
             self.quality.set(DEFAULT_QUALITY)
         ttk.Combobox(row, textvariable=self.quality, values=list(QUALITIES), state="readonly",
                      width=40).pack(side="left", padx=8)
+        self.login = tk.StringVar(value=cfg.get("login", "안 씀"))
+        if self.login.get() not in LOGIN_CHOICES:
+            self.login.set("안 씀")
+        LOGIN["browser"] = LOGIN_CHOICES[self.login.get()]
+        box = ttk.Combobox(row, textvariable=self.login, values=list(LOGIN_CHOICES), state="readonly", width=9)
+        box.pack(side="right")
+        box.bind("<<ComboboxSelected>>", lambda e: self.on_login_change())
+        ttk.Label(row, text="로그인 필요한 영상").pack(side="right", padx=(0, 6))
 
         row = ttk.Frame(f)
         row.pack(fill="x", pady=4)
@@ -571,10 +621,17 @@ class App:
         except (OSError, ValueError):
             return {}
 
+    def on_login_change(self):
+        LOGIN["browser"] = LOGIN_CHOICES[self.login.get()]
+        self.save_cfg()
+        if LOGIN["browser"]:
+            self.write(f"[알림] 로그인 필요한 영상은 {self.login.get()}의 로그인 정보로 받습니다. "
+                       "그 브라우저에서 해당 사이트(인스타·링크드인 등)에 로그인돼 있어야 합니다.")
+
     def save_cfg(self):
         try:
             with open(SETTINGS, "w", encoding="utf-8") as fp:
-                json.dump({"folder": self.folder.get(), "quality": self.quality.get()},
+                json.dump({"folder": self.folder.get(), "quality": self.quality.get(), "login": self.login.get()},
                           fp, ensure_ascii=False, indent=2)
         except OSError:
             pass
