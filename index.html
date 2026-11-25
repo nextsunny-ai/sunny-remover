@@ -270,6 +270,17 @@ input[type=range]::-webkit-slider-thumb{
 .card-stage{font-size:16px;font-weight:700;}
 .card-detail{font-size:12.5px;color:var(--t-1);line-height:1.6;min-height:18px;}
 .card-pct{font-size:13px;font-weight:600;color:var(--acc);font-variant-numeric:tabular-nums;}
+.card-preview{width:100%;max-width:360px;border-radius:10px;background:#000;box-shadow:var(--sh-1);}
+.card-note{font-size:12px;color:var(--t-2);line-height:1.55;}
+.sub-label{font-size:12.5px;font-weight:600;color:var(--t-2);margin:16px 0 7px;}
+.vopt-row{display:flex;align-items:center;gap:6px;margin-top:12px;font-size:13px;color:var(--t-1);}
+.vopt-row span:first-child{flex:0 0 auto;margin-right:2px;}
+.vopt-row input{width:64px;padding:6px 7px;border:1px solid var(--line-2);border-radius:var(--r-sm);font:inherit;font-size:13px;background:var(--surface);color:var(--t-0);}
+.vopt-row input:focus{outline:2px solid var(--acc-line);border-color:var(--acc);}
+.vopt-check{display:flex;align-items:center;gap:7px;margin-top:10px;font-size:13px;color:var(--t-1);cursor:pointer;}
+.vopt-check input{accent-color:var(--acc);width:15px;height:15px;}
+.vopt-est{margin-top:10px;font-size:12.5px;color:var(--acc);font-weight:600;line-height:1.5;min-height:18px;}
+.res-video{width:100%;max-height:64vh;border-radius:var(--r-md);background:#000;}
 .err-icon{width:54px;height:54px;border-radius:50%;background:var(--danger-soft);color:var(--danger);display:flex;align-items:center;justify-content:center;font-size:26px;}
 .card-actions{display:flex;gap:9px;margin-top:4px;}
 .card-actions button{padding:9px 18px;border-radius:var(--r-sm);font-size:12.5px;font-weight:600;cursor:pointer;border:1px solid var(--line-2);background:var(--surface);color:var(--t-1);}
@@ -687,14 +698,11 @@ input[type=file]{display:none;}
 
     <aside class="sidebar">
       <div class="block">
-        <div class="block-title"><span class="num">1</span><span data-i18n="block1">Image</span></div>
+        <div class="block-title"><span class="num">1</span><span data-i18n="secImg">이미지 업스케일</span></div>
         <button class="btn btn-ghost" id="up_pickBtn" data-i18n="pick">📁 Choose image</button>
         <input type="file" id="up_fileInput" accept="image/*">
         <div class="file-meta" id="up_fileMeta"></div>
-      </div>
-
-      <div class="block">
-        <div class="block-title"><span class="num">2</span><span data-i18n="block2">Scale</span></div>
+        <div class="sub-label" data-i18n="block2">Scale</div>
         <div class="scale-grid">
           <button class="scale-btn active" id="up_scale2">
             <span class="big">2×</span><span class="sm" data-i18n="scale2sub">Recommended</span>
@@ -707,6 +715,30 @@ input[type=file]{display:none;}
           <span id="up_sizeIn">—</span><span class="arrow">→</span><span class="out" id="up_sizeOut">—</span>
         </div>
         <div class="warn" id="up_sizeWarn"></div>
+      </div>
+
+      <div class="block" id="up_videoOpts">
+        <div class="block-title"><span class="num">2</span><span data-i18n="secVid">영상 업스케일</span></div>
+        <button class="btn btn-ghost" id="up_vPickBtn" data-i18n="vpick">🎬 영상 선택</button>
+        <input type="file" id="up_vFileInput" accept="video/*,.mp4,.mov,.m4v,.webm">
+        <div class="file-meta" id="up_vFileMeta"></div>
+        <div class="sub-label" data-i18n="block2">배율</div>
+        <div class="scale-grid">
+          <button class="scale-btn active" id="up_vScale2"><span class="big">2×</span><span class="sm" data-i18n="scale2sub">권장</span></button>
+          <button class="scale-btn" id="up_vScale4"><span class="big">4×</span><span class="sm" data-i18n="vScale4sub">최대 4K</span></button>
+        </div>
+        <div class="size-preview" id="up_vSizePreview" style="display:none;">
+          <span id="up_vSizeIn">—</span><span class="arrow">→</span><span class="out" id="up_vSizeOut">—</span>
+        </div>
+        <div class="sub-label" data-i18n="qualityTitle">품질</div>
+        <div class="scale-grid">
+          <button class="scale-btn active" id="up_qFast"><span class="big" data-i18n="qFast">빠름</span><span class="sm" data-i18n="qFastSub">영상용 · 권장</span></button>
+          <button class="scale-btn" id="up_qHigh"><span class="big" data-i18n="qHigh">고품질</span><span class="sm" data-i18n="qHighSub">매우 느림</span></button>
+        </div>
+        <div class="vopt-row"><span data-i18n="rangeTitle">구간(초)</span>
+          <input type="number" id="up_vFrom" min="0" step="0.1" value="0"><span>~</span><input type="number" id="up_vTo" min="0" step="0.1"></div>
+        <label class="vopt-check"><input type="checkbox" id="up_vAudio" checked> <span data-i18n="keepAudio">소리 유지</span></label>
+        <div class="vopt-est" id="up_vEstimate"></div>
       </div>
 
       <div class="block" style="margin-top:auto;">
@@ -749,10 +781,12 @@ input[type=file]{display:none;}
 <div class="overlay" id="up_overlay">
   <div class="card" id="up_progressCard">
     <div id="up_cardIcon"><div class="spinner"></div></div>
+    <canvas id="up_cardPreview" class="card-preview" style="display:none"></canvas>
     <div class="card-stage" id="up_cardStage"></div>
     <div class="card-detail" id="up_cardDetail"></div>
     <div class="card-bar"><div class="card-bar-fill" id="up_cardBarFill"></div></div>
     <div class="card-pct" id="up_cardPct"></div>
+    <div class="card-note" id="up_cardNote" style="display:none"></div>
   </div>
 </div>
 
@@ -762,6 +796,7 @@ input[type=file]{display:none;}
     <div class="result-head">
       <h3><span data-i18n="resultTitle">✓ Done</span> <span class="sub" id="up_resultSub"></span></h3>
     </div>
+    <video id="up_resVideo" class="res-video" controls playsinline loop style="display:none"></video>
     <div class="compare" id="up_compare">
       <img id="up_resBefore" src="" alt="before">
       <div class="after-wrap" id="up_afterWrap"><img id="up_resAfter" src="" alt="after"></div>
@@ -1896,12 +1931,14 @@ const TABS = {
 function switchTab(tab){
   if(tab===CURRENT_TAB || !TABS[tab]) return;
   CURRENT_TAB=tab;
+  const curPanel = TABS[tab].panel;
   for(const [k,v] of Object.entries(TABS)){
-    const on = (k===tab);
+    const on = (v.panel===curPanel);
     document.getElementById(v.panel).classList.toggle('hidden',!on);
-    document.getElementById(v.btn).classList.toggle('active',on);
+    document.getElementById(v.btn).classList.toggle('active',k===tab);
     document.getElementById(v.pill).classList.toggle('tab-hidden',!on);
   }
+
   // 활성 탭 엔진만 lazy 로드 (업스케일 모델 67MB = 탭에 들어올 때만 받는다)
   if(tab==='wm'){ if(!state.session && !state.engineFailed) loadEngine(); }
   else if(tab==='bg'){ if(window.bgEnsureEngine) window.bgEnsureEngine(); }
@@ -3564,15 +3601,15 @@ const I18N = {
     installBtn:'⬇ 앱 설치',
     block1:'이미지', pick:'📁 이미지 선택',
     block2:'배율', scale2sub:'권장', scale4sub:'느림',
-    run:'업스케일 실행', runHintIdle:'이미지를 먼저 선택하세요', runHintReady:'배율을 고르고 업스케일하세요',
-    dropLead:'이미지를 끌어다 놓으세요', dropOr:'또는', dropBtn:'이미지 선택',
+    run:'업스케일 실행', runHintIdle:'이미지나 영상을 먼저 선택하세요', runHintReady:'배율을 고르고 업스케일하세요',
+    dropLead:'이미지나 영상을 끌어다 놓으세요', dropOr:'또는', dropBtn:'이미지 선택',
     dropNote:'파일은 서버로 전송되지 않습니다. 모든 처리는 이 브라우저 안에서 이뤄집니다.',
     statusIdle:'대기 중', statusReady:'배율을 고르고 업스케일하세요',
     resultTitle:'✓ 완료', tagBefore:'원본', tagAfter:'업스케일',
     compareNote:'양쪽을 같은 크기로 표시했습니다 — 손잡이를 끌어 디테일을 비교하세요.',
     close:'닫기', download:'⬇ 다운로드',
     engLoading:'AI엔진 준비 중…', engReady:'사용 가능', engErr:'AI엔진 불러오기 실패',
-    onlyImage:'이미지 파일만 가능합니다', cantOpen:'이미지를 열 수 없습니다',
+    onlyImage:'이미지 파일만 가능합니다 — 영상은 2번 「영상 업스케일」에서 넣어 주세요', cantOpen:'이미지를 열 수 없습니다',
     pickFirst:'먼저 이미지를 선택하세요',
     processing:'업스케일 중…', preparing:'준비 중',
     onGpu:'GPU로 처리 중', onCpu:'처리 중 (잠시 걸릴 수 있습니다)',
@@ -3587,20 +3624,32 @@ const I18N = {
     bigWarn:'큰 이미지입니다. 4× 처리는 시간이 오래 걸리고 메모리를 많이 씁니다. 2×를 권장합니다.',
     mobileWarn:'모바일에서는 큰 이미지의 4× 처리가 느리거나 멈출 수 있습니다.',
     panOn:'이동 모드 — 드래그해서 그림을 옮기세요', panOff:'보기 모드로 돌아왔습니다',
+    cantOpenVideo:'이 영상은 브라우저에서 열 수 없습니다 (MP4·H.264 권장)', withAudio:'소리 포함', noAudio:'소리 없음/복사 불가',
+    framesUnit:'장면', runHintVideo:'배율을 고르고 업스케일하세요 — 영상은 장면마다 처리해 시간이 걸립니다',
+    videoProcessing:'영상 업스케일 중…', frameWord:'장면', elapsed:'경과', remaining:'남은 시간 약',
+    videoNote:'영상은 장면을 하나씩 키운 뒤 다시 묶어서 시간이 걸립니다. 위 미리보기가 바뀌면 정상 진행 중입니다. 이 탭을 열어 둔 채 기다려 주세요.',
+    stopBtn:'중지', stopping:'멈추는 중…', stopped:'영상 업스케일을 중지했습니다',
+    noEncoder:'이 브라우저는 영상 저장을 지원하지 않습니다. 최신 크롬이나 엣지에서 열어 주세요.',
+    videoCapped:'4K 한도에 맞춤',
+    secImg:'이미지 업스케일', secVid:'영상 업스케일', vpick:'🎬 영상 선택', vScale4sub:'최대 4K',
+    vrunHintIdle:'영상을 먼저 선택하세요', onlyVideo:'영상 파일만 가능합니다 (MP4 권장) — 이미지는 1번 「이미지 업스케일」에서',
+    qualityTitle:'품질', qFast:'빠름', qFastSub:'영상용 · 권장', qHigh:'고품질', qHighSub:'매우 느림',
+    rangeTitle:'구간(초)', keepAudio:'소리 유지', estFrames:'장면', estTime:'예상 약', estMeasuring:'예상 시간 계산 중…',
+    loadingVideoEngine:'영상 엔진 준비 중…',
   },
   en:{
     installBtn:'⬇ Install',
     block1:'Image', pick:'📁 Choose image',
     block2:'Scale', scale2sub:'Recommended', scale4sub:'Slower',
-    run:'Upscale', runHintIdle:'Choose an image first', runHintReady:'Pick a scale, then upscale',
-    dropLead:'Drag & drop an image', dropOr:'or', dropBtn:'Choose image',
+    run:'Upscale', runHintIdle:'Choose an image or video first', runHintReady:'Pick a scale, then upscale',
+    dropLead:'Drag & drop an image or video', dropOr:'or', dropBtn:'Choose image',
     dropNote:'Files are never uploaded. Everything runs inside your browser.',
     statusIdle:'Idle', statusReady:'Pick a scale, then upscale',
     resultTitle:'✓ Done', tagBefore:'Before', tagAfter:'Upscaled',
     compareNote:'Both sides shown at the same display size — drag to compare detail.',
     close:'Close', download:'⬇ Download',
     engLoading:'Loading AI engine…', engReady:'Ready', engErr:'AI engine failed',
-    onlyImage:'Image files only', cantOpen:'Couldn’t open that image',
+    onlyImage:'Images only here — use step 2 for video', cantOpen:'Couldn’t open that image',
     pickFirst:'Choose an image first',
     processing:'Upscaling…', preparing:'Preparing',
     onGpu:'Processing on GPU', onCpu:'Processing (may take a moment)',
@@ -3615,6 +3664,18 @@ const I18N = {
     bigWarn:'Large image. 4× takes a long time and uses a lot of memory. 2× is recommended.',
     mobileWarn:'On mobile, 4× on a large image may be slow or stall.',
     panOn:'Pan mode — drag to move the image', panOff:'Back to view mode',
+    cantOpenVideo:'This video can’t be opened in the browser (MP4/H.264 recommended)', withAudio:'with audio', noAudio:'no audio',
+    framesUnit:' frames', runHintVideo:'Pick a scale, then upscale — video is processed frame by frame and takes time',
+    videoProcessing:'Upscaling video…', frameWord:'Frame', elapsed:'elapsed', remaining:'about',
+    videoNote:'Each frame is upscaled and re-encoded, so this takes a while. If the preview above keeps changing, it is working. Keep this tab open.',
+    stopBtn:'Stop', stopping:'Stopping…', stopped:'Video upscale stopped',
+    noEncoder:'This browser cannot save video. Please use the latest Chrome or Edge.',
+    videoCapped:'fit to 4K',
+    secImg:'Image upscale', secVid:'Video upscale', vpick:'🎬 Choose video', vScale4sub:'Up to 4K',
+    vrunHintIdle:'Choose a video first', onlyVideo:'Video files only (MP4 recommended) — use step 1 for images',
+    qualityTitle:'Quality', qFast:'Fast', qFastSub:'Video model · recommended', qHigh:'High', qHighSub:'Very slow',
+    rangeTitle:'Range (s)', keepAudio:'Keep audio', estFrames:' frames', estTime:'about', estMeasuring:'Estimating time…',
+    loadingVideoEngine:'Preparing video engine…',
   }
 };
 let LANG = localStorage.getItem('up_lang') || (navigator.language && navigator.language.toLowerCase().startsWith('ko') ? 'ko' : 'en');
@@ -3632,7 +3693,8 @@ function refreshEngineLabel(){
 }
 function refreshDynamic(){
   const rh=document.getElementById('up_runHint');
-  rh.textContent = state.img ? t('runHintReady') : t('runHintIdle');
+  rh.textContent = state.img ? (state.video ? t('runHintVideo') : t('runHintReady'))
+                             : t('runHintIdle');
   const sm=document.getElementById('up_statusMsg');
   sm.textContent = state.img ? t('statusReady') : t('statusIdle');
   updateSizePreview();
@@ -3728,7 +3790,11 @@ function setEngine(cls,label){
 function onPickFile(e){ const f=e.target.files[0]; if(f) loadImageFile(f); e.target.value=''; }
 
 function loadImageFile(file){
+  if(isVideoFile(file)){ loadVideoFile(file); return; }   // 드래그로 영상을 놓아도 영상으로 처리
   if(!file.type.startsWith('image/')){ toast(t('onlyImage')); return; }
+  document.getElementById('up_vFileMeta').textContent='';
+  document.getElementById('up_vEstimate').textContent='';
+  state.video = null;
   state.fileName = file.name;
   const url = URL.createObjectURL(file);
   state.origURL = url;
@@ -3765,6 +3831,17 @@ function setScale(s){
 }
 function updateSizePreview(){
   if(!state.img) return;
+  if(state.video){
+    const o=videoOutSize(state.imgW,state.imgH,state.vScale||2);
+    document.getElementById('up_vSizePreview').style.display='flex';
+    document.getElementById('up_vSizeIn').textContent=`${state.imgW}×${state.imgH}`;
+    document.getElementById('up_vSizeOut').textContent=`${o.w}×${o.h}`+(o.capped?` (${t('videoCapped')})`:'');
+    document.getElementById('up_sizePreview').style.display='none';
+    document.getElementById('up_sizeWarn').classList.remove('show');
+    updateEstimate();
+    return;
+  }
+  document.getElementById('up_vSizePreview').style.display='none';
   const ow=state.imgW*state.scale, oh=state.imgH*state.scale;
   document.getElementById('up_sizeIn').textContent=`${state.imgW}×${state.imgH}`;
   document.getElementById('up_sizeOut').textContent=`${ow}×${oh}`;
@@ -3875,15 +3952,16 @@ function movePinch(e){
 //   덕분에 셰이더/커널은 첫 타일(또는 워밍업)에서 한 번만 준비되고 모든 타일·이미지가 재사용한다.
 //   타일은 16px 겹쳐 자르고, 겹친 변은 코사인² 가중으로 블렌딩해 경계 자국을 없앤다.
 //   가장자리 부분 타일은 항상 이미지 끝에 정렬해 채우므로 128 미만 입력이 생기지 않는다.
-async function upscalePass(src, onProgress){
-  const sess=state.session;
+function yieldUI(){ return new Promise(r=>{ const c=new MessageChannel(); c.port1.onmessage=()=>r(); c.port2.postMessage(0); }); }
+async function upscalePass(src, onProgress, eng){
+  const sess=(eng&&eng.session)||state.session;
   const inName = sess.inputNames[0];   // image
   const outName= sess.outputNames[0];  // upscaled_image
   const W=src.w, H=src.h, S=MODEL_SCALE;
   const outW=W*S, outH=H*S;
   const acc=new Float32Array(outW*outH*3);
   const wsum=new Float32Array(outW*outH);
-  const T=TILE, TO=TILE_OUT;
+  const T=(eng&&eng.tile)||TILE, TO=T*MODEL_SCALE;
   const chw=new Float32Array(3*T*T); // 입력 버퍼 1개 재사용
 
   // 타일 시작점 — (T-OVERLAP)만큼 전진, 마지막 타일은 이미지 끝(L-T)에 정렬.
@@ -3933,7 +4011,7 @@ async function upscalePass(src, onProgress){
       }
       done++;
       if(onProgress) onProgress(done,total);
-      await new Promise(r=>setTimeout(r,0)); // UI 양보 (진행률 갱신)
+      await yieldUI(); // UI 양보 (진행률 갱신) — 백그라운드 탭에서도 타이머 지연 없음
     }
   }
   // 정규화 → RGBA
@@ -3973,6 +4051,7 @@ function edgeWeight(i,len,band, hasLeft, hasRight){
 async function runUpscale(){
   if(!state.img){ toast(t('pickFirst')); return; }
   if(state.busy) return;
+  if(state.video){ return runVideoUpscale(); }
   if(state.engineFailed && !state.session){ showError(t('engNotReady')); return; }
   state.busy=true;
   document.getElementById('up_runBtn').disabled=true;
@@ -4063,6 +4142,10 @@ function showError(msg){
 //  결과 (Before/After)
 // ──────────────────────────────────────────────
 function showResult(url,sec,ow,oh){
+  state.resultIsVideo=false;
+  const rv=document.getElementById('up_resVideo'); rv.pause(); rv.style.display='none';
+  document.getElementById('up_compare').style.display='';
+  document.querySelector('#up_resultOverlay .compare-note').style.display='';
   document.getElementById('up_resBefore').src=state.origURL;
   document.getElementById('up_resAfter').src=url;
   document.getElementById('up_resultSub').textContent=`· ${ow}×${oh} · ${sec}${t('secUnit')}`;
@@ -4090,17 +4173,347 @@ function initCompare(){
   compare.ontouchmove=e=>{if(drag){e.preventDefault();move(e.touches[0].clientX);}};
   compare.ontouchend=()=>drag=false;
 }
-function closeResult(){ document.getElementById('up_resultOverlay').classList.remove('show'); }
+function closeResult(){ document.getElementById('up_resVideo').pause(); document.getElementById('up_resultOverlay').classList.remove('show'); }
 function downloadResult(){
   if(!state.resultURL) return;
   const a=document.createElement('a');
   const base=(state.fileName||'image').replace(/\.[^.]+$/,'');
-  a.href=state.resultURL; a.download=`${base}_${state.scale}x.png`; a.click();
+  a.href=state.resultURL;
+  a.download= state.resultIsVideo ? `${base}_upscale_${state.resultSize}.mp4` : `${base}_${state.scale}x.png`;
+  a.click();
 }
 
 // ──────────────────────────────────────────────
 //  유틸
 // ──────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════
+//  영상 업스케일 (2026-11-25) — 장면(프레임)마다 같은 엔진으로 키운 뒤 MP4로 다시 묶는다.
+//  · 프레임 추출 = <video> 탐색(seek)   · 화면 수 / fps / AAC 소리 = mp4box로 정확히 읽음
+//  · 저장 = WebCodecs H.264 인코더 + mp4-muxer (소리는 원본 AAC를 그대로 복사)
+//  · 결과는 4K(3840×2160) 안으로 맞춘다 — 하드웨어 H.264 인코더 한도
+// ══════════════════════════════════════════════════════════════════════
+const MP4BOX_URL = 'https://cdn.jsdelivr.net/npm/mp4box@0.5.2/+esm';
+const MUXER_URL  = 'https://cdn.jsdelivr.net/npm/mp4-muxer@5.1.3/+esm';
+const VIDEO_MAX_LONG = 3840, VIDEO_MAX_SHORT = 2160;   // 결과 한도(4K)
+const MAX_X4_PIXELS = 16_000_000;                       // ×4 중간 결과 한도(메모리 보호)
+const VIDEO_EXT = /\.(mp4|m4v|mov|webm|mkv)$/i;
+
+// 흔한 fps(23.976/24/25/29.97/30/50/59.94/60)에 1% 안쪽이면 맞춘다
+function snapFps(f){
+  const common=[23.976,24,25,29.97,30,50,59.94,60];
+  const near=common.reduce((a,b)=>Math.abs(b-f)<Math.abs(a-f)?b:a);
+  return Math.abs(near-f)/near<0.01 ? near : f;
+}
+function isVideoFile(file){ return (file.type||'').startsWith('video/') || VIDEO_EXT.test(file.name||''); }
+function even(n){ return Math.max(2, Math.round(n/2)*2); }
+function fmtDur(sec){
+  sec=Math.max(0,Math.round(sec));
+  const m=Math.floor(sec/60), s=sec%60;
+  return LANG==='ko' ? (m? `${m}분 ${s}초` : `${s}초`) : (m? `${m}m ${s}s` : `${s}s`);
+}
+// 결과 크기: 원본×배율을 4K 상자 안으로 축소(비율 유지, 짝수)
+function videoOutSize(w,h,scale){
+  let ow=w*scale, oh=h*scale;
+  const long=Math.max(ow,oh), short=Math.min(ow,oh);
+  const k=Math.min(1, VIDEO_MAX_LONG/long, VIDEO_MAX_SHORT/short);
+  return { w:even(ow*k), h:even(oh*k), capped:k<1 };
+}
+
+// mp4/mov 정보(fps·장면 수·AAC 소리) — 못 읽으면 null
+async function probeMp4(file){
+  try{
+    const mod=await import(MP4BOX_URL); const MP4Box=mod.default||mod;
+    const buf=await file.arrayBuffer(); buf.fileStart=0;
+    const mp=MP4Box.createFile();
+    const info=await new Promise((res,rej)=>{ mp.onReady=res; mp.onError=rej; mp.appendBuffer(buf); mp.flush(); setTimeout(()=>rej(new Error('probe timeout')),8000); });
+    const vt=info.videoTracks&&info.videoTracks[0];
+    const out={ fps:0, frames:0, audio:null };
+    if(vt){
+      const sec= vt.movie_duration&&vt.movie_timescale ? vt.movie_duration/vt.movie_timescale : vt.duration/vt.timescale;
+      out.frames=vt.nb_samples; out.fps= sec>0 ? snapFps(vt.nb_samples/sec) : 0;
+    }
+    const at=info.audioTracks&&info.audioTracks[0];
+    if(at && /^mp4a/i.test(at.codec)){
+      const trak=mp.getTrackById(at.id);
+      let desc=null;
+      for(const e of trak.mdia.minf.stbl.stsd.entries){
+        const d=e.esds&&e.esds.esd&&e.esds.esd.descs&&e.esds.esd.descs[0]&&e.esds.esd.descs[0].descs&&e.esds.esd.descs[0].descs[0];
+        if(d&&d.data){ desc=d.data; break; }
+      }
+      const samples=await new Promise(res=>{
+        const got=[];
+        mp.onSamples=(id,user,s)=>{ got.push(...s); if(got.length>=at.nb_samples) res(got); };
+        mp.setExtractionOptions(at.id,null,{nbSamples:Infinity});
+        mp.start(); mp.flush();
+        setTimeout(()=>res(got),3000);
+      });
+      if(samples.length){
+        out.audio={ codec:at.codec, sampleRate:at.audio.sample_rate, channels:at.audio.channel_count,
+                    description:desc, samples };
+      }
+    }
+    return out;
+  }catch(e){ console.warn('mp4 probe failed', e); return null; }
+}
+
+// mp4가 아닐 때 fps 추정(재생하며 프레임 간격 측정)
+function estimateFps(video){
+  return new Promise(res=>{
+    if(!video.requestVideoFrameCallback){ res(30); return; }
+    const ts=[]; let n=0;
+    const done=()=>{ video.pause(); video.currentTime=0;
+      if(ts.length<3){ res(30); return; }
+      const d=[]; for(let i=1;i<ts.length;i++) d.push(ts[i]-ts[i-1]);
+      d.sort((a,b)=>a-b); const med=d[Math.floor(d.length/2)];
+      const raw=1/med; const common=[23.976,24,25,29.97,30,50,59.94,60];
+      res(common.reduce((a,b)=>Math.abs(b-raw)<Math.abs(a-raw)?b:a)); };
+    const cb=(now,meta)=>{ ts.push(meta.mediaTime); if(++n<12) video.requestVideoFrameCallback(cb); else done(); };
+    video.requestVideoFrameCallback(cb);
+    video.muted=true; video.play().catch(()=>res(30));
+    setTimeout(done,2500);
+  });
+}
+
+function seekTo(video,t){
+  return new Promise((res,rej)=>{
+    const on=()=>{ video.removeEventListener('seeked',on); res(); };
+    video.addEventListener('seeked',on);
+    video.currentTime=t;
+    setTimeout(()=>{ video.removeEventListener('seeked',on); res(); },5000);
+  });
+}
+
+
+// ── 영상 엔진: 영상용 경량 모델 fp16(WebGPU) → fp32(WebGPU) → fp32(CPU) 순서로 시도 ──
+const VIDEO_TILE=256;
+async function getVideoEngine(){
+  if(state.vEngine) return state.vEngine;
+  const tries=[['./realesr_general_x4v3_256_fp16.onnx',['webgpu']],
+               ['./realesr_general_x4v3_256.onnx',['webgpu']],
+               ['./realesr_general_x4v3_256.onnx',['wasm']]];
+  for(const [url,ep] of tries){
+    try{
+      const sess=await ort_.InferenceSession.create(url,{executionProviders:ep});
+      const x=new ort_.Tensor('float32', new Float32Array(3*VIDEO_TILE*VIDEO_TILE).fill(0.5),[1,3,VIDEO_TILE,VIDEO_TILE]);
+      const f={}; f[sess.inputNames[0]]=x;
+      await sess.run(f);
+      const t0=performance.now(); await sess.run(f); await sess.run(f);
+      state.vEngine={ session:sess, tile:VIDEO_TILE, ms:(performance.now()-t0)/2, gpu:ep[0]==='webgpu' };
+      return state.vEngine;
+    }catch(e){ console.warn('video engine fallback', url, ep, e); }
+  }
+  throw new Error(t('engUnavailable'));
+}
+async function getHighEngine(){
+  if(!state.session) await loadEngine();
+  if(!state.session) throw new Error(t('engUnavailable'));
+  if(!state.highMs){
+    const x=new ort_.Tensor('float32', new Float32Array(3*TILE*TILE).fill(0.5),[1,3,TILE,TILE]);
+    const f={}; f[state.session.inputNames[0]]=x;
+    const t0=performance.now(); await state.session.run(f); state.highMs=performance.now()-t0;
+  }
+  return { session:state.session, tile:TILE, ms:state.highMs };
+}
+function tileCount(L,T){ return L<=T ? 1 : Math.ceil((L-T)/(T-OVERLAP))+1; }
+function videoInputSize(w,h){
+  const k=Math.min(1, Math.sqrt(MAX_X4_PIXELS/(w*h*16)));
+  return { w:Math.round(w*k), h:Math.round(h*k) };
+}
+function videoRange(){
+  const V=state.video; if(!V) return null;
+  let from=parseFloat(document.getElementById('up_vFrom').value)||0;
+  let to=parseFloat(document.getElementById('up_vTo').value); if(!(to>0)) to=V.duration;
+  from=Math.max(0,Math.min(from,V.duration)); to=Math.max(from,Math.min(to,V.duration));
+  const i0=Math.min(V.frames-1, Math.floor(from*V.fps+1e-6));
+  const i1=Math.max(i0+1, Math.min(V.frames, Math.round(to*V.fps)));
+  return { from, to, i0, i1, count:i1-i0 };
+}
+let estSeq=0;
+async function updateEstimate(){
+  const V=state.video, el=document.getElementById('up_vEstimate');
+  if(!V){ el.textContent=''; return; }
+  const r=videoRange(); const my=++estSeq;
+  el.textContent=`${r.count}${t('estFrames')} · ${t('estMeasuring')}`;
+  try{
+    const eng = state.vQuality==='high' ? await getHighEngine() : await getVideoEngine();
+    if(my!==estSeq) return;
+    const inp=videoInputSize(V.w,V.h);
+    const tiles=tileCount(inp.w,eng.tile)*tileCount(inp.h,eng.tile);
+    const perFrame=(tiles*(eng.ms+eng.tile*eng.tile*16*3e-6)+120)/1000;   // 추론 + 합치기 + 저장
+    el.textContent=`${r.count}${t('estFrames')} · ${t('estTime')} ${fmtDur(perFrame*r.count)}`;
+  }catch(_){ if(my===estSeq) el.textContent=`${r.count}${t('estFrames')}`; }
+}
+
+async function loadVideoFile(file){
+  if(state.busy) return;
+  const url=URL.createObjectURL(file);
+  const v=document.createElement('video');
+  v.preload='auto'; v.muted=true; v.playsInline=true; v.src=url;
+  try{
+    await new Promise((res,rej)=>{ v.onloadeddata=res; v.onerror=()=>rej(new Error('decode')); setTimeout(()=>rej(new Error('timeout')),15000); });
+  }catch(_){ toast(t('cantOpenVideo')); URL.revokeObjectURL(url); return; }
+  const W=v.videoWidth, H=v.videoHeight;
+  const probe=await probeMp4(file);
+  let fps=probe&&probe.fps>1 ? probe.fps : await estimateFps(v);
+  const frames= probe&&probe.frames ? probe.frames : Math.max(1,Math.round(v.duration*fps));
+  await seekTo(v, Math.min(0.05, v.duration/2));
+  // 첫 장면을 캔버스로 (이미지와 같은 화면을 그대로 쓴다)
+  const first=document.createElement('canvas'); first.width=W; first.height=H;
+  first.getContext('2d').drawImage(v,0,0,W,H);
+  first.naturalWidth=W; first.naturalHeight=H;
+  state.video={ file, url, el:v, w:W, h:H, duration:v.duration, fps, frames, audio:probe&&probe.audio };
+  state.fileName=file.name; state.origURL=null;
+  state.img=first; state.imgW=W; state.imgH=H;
+  setupCanvas(first);
+  const au= state.video.audio ? t('withAudio') : t('noAudio');
+  document.getElementById('up_fileMeta').textContent='';
+  document.getElementById('up_vFileMeta').textContent=`${file.name} · ${W}×${H} · ${v.duration.toFixed(1)}${t('secUnit')} · ${fps.toFixed(fps%1?2:0)}fps · ${frames}${t('framesUnit')} · ${au}`;
+  document.getElementById('up_runBtn').disabled=false;
+  document.getElementById('up_runHint').textContent=t('runHintVideo');
+  document.getElementById('up_statusMsg').textContent=t('runHintVideo');
+  const vf=document.getElementById('up_vFrom'), vt=document.getElementById('up_vTo');
+  vf.value='0'; vt.value=v.duration.toFixed(1); vf.max=vt.max=v.duration.toFixed(1);
+  document.getElementById('up_vAudio').checked=!!state.video.audio;
+  document.getElementById('up_vAudio').disabled=!state.video.audio;
+  updateSizePreview();
+}
+
+async function pickH264Config(w,h,fps){
+  const bitrate=Math.round(Math.min(80e6, Math.max(8e6, w*h*fps*0.16)));
+  for(const codec of ['avc1.640034','avc1.640033','avc1.4d0034','avc1.4d0033','avc1.42003e']){
+    for(const hw of ['prefer-hardware','no-preference']){
+      const cfg={ codec, width:w, height:h, bitrate, framerate:fps, hardwareAcceleration:hw,
+                  avc:{format:'avc'} };
+      try{ const s=await VideoEncoder.isConfigSupported(cfg); if(s.supported) return s.config; }catch(_){}
+    }
+  }
+  return null;
+}
+
+let videoCancel=false;
+function showVideoProgressExtras(on){
+  const pv=document.getElementById('up_cardPreview'); pv.style.display=on?'block':'none';
+  const note=document.getElementById('up_cardNote'); note.textContent=on?t('videoNote'):''; note.style.display=on?'block':'none';
+  const card=document.getElementById('up_progressCard');
+  let acts=card.querySelector('.card-actions');
+  if(on){
+    if(!acts){ acts=document.createElement('div'); acts.className='card-actions'; card.appendChild(acts); }
+    acts.innerHTML='';
+    const stop=document.createElement('button'); stop.textContent=t('stopBtn');
+    stop.onclick=()=>{ videoCancel=true; stop.disabled=true; stop.textContent=t('stopping'); };
+    acts.appendChild(stop);
+  }else if(acts){ acts.remove(); }
+}
+
+async function runVideoUpscale(){
+  const V=state.video;
+  if(typeof VideoEncoder==='undefined'){ showError(t('noEncoder')); return; }
+  state.busy=true; videoCancel=false;
+  document.getElementById('up_runBtn').disabled=true;
+  showProgress(t('videoProcessing'), t('preparing'));
+  showVideoProgressExtras(true);
+  const baseTitle=document.title;
+  let wake=null; try{ wake=await navigator.wakeLock.request('screen'); }catch(_){}
+  const t0=performance.now();
+  try{
+    setProgress(t('videoProcessing'), t('loadingVideoEngine'));
+    const eng = state.vQuality==='high' ? await getHighEngine() : await getVideoEngine();
+    const out=videoOutSize(V.w,V.h,state.vScale||2);
+    const R=videoRange();
+    const fps=V.fps, n=R.count;
+    const useAudio = !!V.audio && document.getElementById('up_vAudio').checked;
+    const enc=await pickH264Config(out.w,out.h,fps);
+    if(!enc) throw new Error(t('noEncoder'));
+
+    const { Muxer, ArrayBufferTarget } = await import(MUXER_URL);
+    const muxOpts={ target:new ArrayBufferTarget(), fastStart:'in-memory', firstTimestampBehavior:'offset',
+                    video:{ codec:'avc', width:out.w, height:out.h, frameRate:fps } };
+    if(useAudio) muxOpts.audio={ codec:'aac', numberOfChannels:V.audio.channels, sampleRate:V.audio.sampleRate };
+    const muxer=new Muxer(muxOpts);
+    let encErr=null;
+    const encoder=new VideoEncoder({ output:(chunk,meta)=>muxer.addVideoChunk(chunk,meta), error:e=>{ encErr=e; } });
+    encoder.configure(enc);
+
+    // 모델 입력 크기: 원본이 크면 ×4 중간 결과가 한도를 넘지 않게 먼저 줄인다
+    const inp=videoInputSize(V.w,V.h); const inW=inp.w, inH=inp.h;
+    const grab=document.createElement('canvas'); grab.width=inW; grab.height=inH;
+    const gctx=grab.getContext('2d',{willReadFrequently:true}); gctx.imageSmoothingQuality='high';
+    const big=document.createElement('canvas'); big.width=inW*MODEL_SCALE; big.height=inH*MODEL_SCALE;
+    const bctx=big.getContext('2d');
+    const outCv=document.createElement('canvas'); outCv.width=out.w; outCv.height=out.h;
+    const octx=outCv.getContext('2d'); octx.imageSmoothingEnabled=true; octx.imageSmoothingQuality='high';
+    const pv=document.getElementById('up_cardPreview');
+    pv.width=360; pv.height=Math.round(360*out.h/out.w);
+    const pctx=pv.getContext('2d');
+
+    const detail = (eng===state.vEngine ? eng.gpu : state.engineProvider==='webgpu') ? t('onGpu') : t('onCpu');
+    const frameDur=1e6/fps, gop=Math.max(1,Math.round(fps*2));
+    for(let i=0;i<n;i++){
+      if(videoCancel) throw new Error('__cancel__');
+      if(encErr) throw encErr;
+      await seekTo(V.el, Math.min(V.duration-0.001, (R.i0+i+0.5)/fps));
+      gctx.drawImage(V.el,0,0,inW,inH);
+      const src={ data:gctx.getImageData(0,0,inW,inH).data, w:inW, h:inH };
+      const up=await upscalePass(src,(d,tot)=>{
+        const pct=((i+d/tot)/n)*100;
+        setBar(pct, `${t('frameWord')} ${i+1} / ${n}`);
+        document.title=`(${Math.floor(pct)}%) ${baseTitle}`;
+      }, eng);
+      bctx.putImageData(new ImageData(up.data,up.w,up.h),0,0);
+      octx.drawImage(big,0,0,out.w,out.h);
+      pctx.drawImage(outCv,0,0,pv.width,pv.height);
+      while(encoder.encodeQueueSize>3) await new Promise(r=>setTimeout(r,5));
+      const vf=new VideoFrame(outCv,{ timestamp:Math.round(i*frameDur), duration:Math.round(frameDur) });
+      encoder.encode(vf,{ keyFrame:i%gop===0 }); vf.close();
+      const el=(performance.now()-t0)/1000, per=el/(i+1), left=per*(n-i-1);
+      setProgress(t('videoProcessing'), `${detail} · ${t('elapsed')} ${fmtDur(el)} · ${t('remaining')} ${fmtDur(left)}`);
+    }
+    await encoder.flush(); encoder.close();
+    if(useAudio){
+      const a=V.audio; let first=true;
+      for(const s of a.samples){
+        const ts=s.cts/s.timescale;
+        if(ts<R.from-1e-3 || ts>=R.to) continue;
+        const meta= first ? { decoderConfig:{ codec:a.codec, numberOfChannels:a.channels, sampleRate:a.sampleRate,
+                                              description:a.description||undefined } } : undefined;
+        muxer.addAudioChunkRaw(s.data,'key', Math.round((ts-R.from)*1e6), Math.round(s.duration/s.timescale*1e6), meta);
+        first=false;
+      }
+    }
+    muxer.finalize();
+    const blob=new Blob([muxer.target.buffer],{type:'video/mp4'});
+    if(state.resultURL && state.resultURL.startsWith('blob:')) URL.revokeObjectURL(state.resultURL);
+    state.resultURL=URL.createObjectURL(blob);
+    state.resultIsVideo=true; state.resultSize=`${out.w}x${out.h}`;
+    const sec=((performance.now()-t0)/1000);
+    hideProgress(); showVideoProgressExtras(false);
+    showVideoResult(state.resultURL, fmtDur(sec), out.w, out.h);
+    document.getElementById('up_statusMsg').textContent=t('doneStatus');
+  }catch(err){
+    showVideoProgressExtras(false);
+    if(err && err.message==='__cancel__'){ hideProgress(); toast(t('stopped')); document.getElementById('up_statusMsg').textContent=t('stopped'); }
+    else{
+      console.error(err);
+      const msg=/out of memory|oom|allocation|failed to allocate/i.test(String(err&&err.message)) ? t('oomErr') : (err&&err.message)||t('genericErr');
+      showError(msg);
+    }
+  }finally{
+    document.title=baseTitle;
+    try{ wake&&wake.release(); }catch(_){}
+    state.busy=false;
+    document.getElementById('up_runBtn').disabled=false;
+  }
+}
+
+function showVideoResult(url,secLabel,ow,oh){
+  const vid=document.getElementById('up_resVideo');
+  vid.src=url; vid.style.display='block';
+  document.getElementById('up_compare').style.display='none';
+  document.querySelector('#up_resultOverlay .compare-note').style.display='none';
+  document.getElementById('up_resultSub').textContent=`· ${ow}×${oh} · ${secLabel}`;
+  document.getElementById('up_resultOverlay').classList.add('show');
+}
+
 function toast(msg){
   const el=document.getElementById('up_toast'); el.textContent=msg; el.classList.add('show');
   clearTimeout(el._h); el._h=setTimeout(()=>el.classList.remove('show'),2800);
@@ -4129,6 +4542,32 @@ $up('up_closeBtn').addEventListener('click', closeResult);
 $up('up_dlBtn').addEventListener('click', downloadResult);
 
 window.upApplyLang   = (lang)=>{ applyLang(lang); };
+$up('up_vPickBtn').addEventListener('click', ()=>$up('up_vFileInput').click());
+$up('up_vFileInput').addEventListener('change', e=>{
+  const f=e.target.files[0]; e.target.value='';
+  if(!f) return;
+  if(isVideoFile(f)) loadVideoFile(f); else toast(t('onlyVideo'));
+});
+state.vQuality='fast';
+function setVQuality(q){
+  state.vQuality=q;
+  $up('up_qFast').classList.toggle('active',q==='fast');
+  $up('up_qHigh').classList.toggle('active',q==='high');
+  updateEstimate();
+}
+$up('up_qFast').addEventListener('click', ()=>setVQuality('fast'));
+state.vScale=2;
+function setVScale(k){
+  state.vScale=k;
+  $up('up_vScale2').classList.toggle('active',k===2);
+  $up('up_vScale4').classList.toggle('active',k===4);
+  updateSizePreview();
+}
+$up('up_vScale2').addEventListener('click', ()=>setVScale(2));
+$up('up_vScale4').addEventListener('click', ()=>setVScale(4));
+$up('up_qHigh').addEventListener('click', ()=>setVQuality('high'));
+$up('up_vFrom').addEventListener('change', updateEstimate);
+$up('up_vTo').addEventListener('change', updateEstimate);
 window.upEnsureEngine= ()=>{ if(!state.engineReady && !state.engineLoading && !state.engineFailed) loadEngine(); };
 window.upRefitCanvas = ()=>{ if(state.img){ fitCanvas(); applyView(); } };
 
