@@ -23,7 +23,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 HOST = socket.gethostname()
 SETTINGS = os.path.join(HERE, f"설정_{HOST}.json")  # PC별 설정(드라이브 공유 충돌 방지)
 LIST_FILE = os.path.join(HERE, f"목록_{HOST}.json")  # PC별 링크 목록(껐다 켜도 유지)
-VERSION = 7  # 사이트의 version.json보다 낮으면 새 버전 공지
+VERSION = 8  # 사이트의 version.json보다 낮으면 새 버전 공지
 UPDATE_URL = "https://sunnyremover.com/downloader/version.json"
 APP_FILE = os.path.abspath(__file__)
 HISTORY_NAME = "다운로드기록.csv"  # 저장 폴더 안에 쌓이는 출처 기록
@@ -91,18 +91,19 @@ def extract_urls(text):
 def friendly_error(exc):
     msg = str(exc)
     low = msg.lower()
-    if any(k in low for k in ("private", "unavailable", "unsupported url", "not a valid url",
-                              "removed", "does not exist", "unable to download webpage",
-                              "http error 404")):
-        return "링크를 열 수 없습니다 — 비공개/삭제 영상이거나 주소를 확인하세요"
     if "drm" in low:
         return "복제 방지(DRM)가 걸린 영상이라 받을 수 없습니다 — 화면 녹화로 대신하세요"
     if "cookie" in low and any(k in low for k in ("decrypt", "could not", "copy", "database", "permission")):
         return ("브라우저 로그인 정보를 읽지 못했습니다 — 그 브라우저 창을 모두 닫고 다시 받거나, "
                 "'로그인 필요한 영상'에서 다른 브라우저(파이어폭스 등)를 고르세요")
-    if any(k in low for k in ("sign in", "logged-in", "login", "log in", "cookies")) or ("age" in low and "restrict" in low):
-        return ("로그인이 필요한 영상입니다 — '로그인 필요한 영상'에서 평소 그 사이트에 로그인해 둔 "
+    if any(k in low for k in ("sign in", "logged-in", "login", "log in", "cookies", "401", "unauthorized")) \
+            or ("age" in low and "restrict" in low):
+        return ("로그인이 필요한 영상입니다 — 화질 옆 '로그인 필요한 영상'에서 평소 그 사이트에 로그인해 둔 "
                 "브라우저를 고른 뒤 다시 받으세요")
+    if any(k in low for k in ("private", "unavailable", "unsupported url", "not a valid url",
+                              "removed", "does not exist", "unable to download webpage",
+                              "http error 404")):
+        return "링크를 열 수 없습니다 — 비공개/삭제 영상이거나 주소를 확인하세요"
     if "ffmpeg" in low:
         return "ffmpeg 문제로 합치기에 실패했습니다 — ffmpeg 설치를 확인하세요"
     if "getaddrinfo" in low or "urlopen error" in low or "timed out" in low:
@@ -299,7 +300,7 @@ class App:
         if sys.platform == "darwin" and tk.TkVersion < 8.6:
             self.write("[경고] 맥 기본 파이썬(Tk %s)은 글자 입력이 안 됩니다. 바탕화면 앱으로 실행하거나 "
                        "처음설치_맥.command를 다시 실행하세요." % tk.TkVersion)
-        self.write("링크를 복사한 뒤 '복사한 링크 붙여넣기'를 누르면 목록에 쌓입니다. "
+        self.write("링크 칸에 붙여넣고(Ctrl+V) 엔터를 누르면 목록에 쌓입니다. "
                    "다 모았으면 '목록 다운로드'를 누르세요.")
         self.root.after(100, self.pump)
         self.root.after(300, self.bring_to_front)
@@ -357,14 +358,14 @@ class App:
     def build_input(self, f):
         row = ttk.Frame(f)
         row.pack(fill="x")
-        ttk.Button(row, text="복사한 링크 붙여넣기", style="Big.TButton",
-                   command=self.paste_clipboard).pack(side="left")
-        ttk.Label(row, text="  또는 직접 입력").pack(side="left")
-        self.entry = ttk.Entry(row)
-        self.entry.pack(side="left", fill="x", expand=True, padx=6)
+        ttk.Label(row, text="링크").pack(side="left")
+        self.entry = ttk.Entry(row, font=(FONT[0], 11))
+        self.entry.pack(side="left", fill="x", expand=True, padx=(6, 6), ipady=4)
         self.entry.bind("<Return>", lambda e: self.add_from_entry())
-        ttk.Button(row, text="추가", command=self.add_from_entry).pack(side="left")
-        self.bind_paste_keys(self.entry)
+        ttk.Button(row, text="추가", style="Big.TButton", command=self.add_from_entry).pack(side="left")
+        ttk.Button(row, text="복사한 링크 바로 추가",
+                   command=self.paste_clipboard).pack(side="left", padx=(6, 0))
+        self.bind_paste_keys(self.entry, into_entry=True)
 
     def build_list(self, f):
         box = ttk.Frame(f)
@@ -462,18 +463,42 @@ class App:
         self.entry.focus_set()
 
     # ---- 붙여넣기 ----
-    def bind_paste_keys(self, widget):
-        widget.bind("<<Paste>>", lambda e: self.paste_clipboard() or "break")
-        if sys.platform == "darwin":  # 맥: Cmd+V·Ctrl+V 모두, 한글 입력 상태(ㅍ)에서도
-            widget.bind("<Control-Key>", self.on_paste_key)
-            widget.bind("<Command-Key>", self.on_paste_key)
+    def bind_paste_keys(self, widget, into_entry=False):
+        """입력칸: Ctrl/Cmd+V = 칸에 글자를 붙여넣기(보통 프로그램과 같게). 목록: 바로 목록에 추가."""
+        action = self.paste_into_entry if into_entry else self.paste_clipboard
+        widget.bind("<<Paste>>", lambda e: action() or "break")
 
-    def on_paste_key(self, event):
+        def handler(event):
+            return self.on_paste_key(event, action)
+
+        widget.bind("<Control-Key>", handler)  # 한글 입력 상태(ㅍ)에서도 붙여넣기
+        if sys.platform == "darwin":
+            widget.bind("<Command-Key>", handler)
+
+    def on_paste_key(self, event, action):
         keysym = (event.keysym or "").lower()
         if keysym == "v" or event.char in ("v", "V", "ㅍ", "\x16") or keysym.startswith("hangul_p"):
-            self.paste_clipboard()
+            action()
             return "break"
         return None
+
+    def paste_into_entry(self):
+        """입력칸에 그대로 붙여넣기. 링크가 여러 개 섞인 글이면 바로 목록에 넣는다."""
+        try:
+            text = self.root.clipboard_get()
+        except tk.TclError:
+            return
+        urls = extract_urls(text)
+        if len(urls) > 1:
+            self.add_urls(urls)
+            return
+        try:
+            self.entry.delete("sel.first", "sel.last")
+        except tk.TclError:
+            pass
+        self.entry.insert("insert", text.strip())
+        if urls:
+            self.write("[알림] 링크를 넣었습니다. 엔터나 '추가'를 누르면 목록에 들어갑니다.")
 
     def paste_clipboard(self):
         try:

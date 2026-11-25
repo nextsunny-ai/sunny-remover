@@ -1,6 +1,6 @@
 {
- "version": 7,
+ "version": 8,
  "date": "2026-11-25",
  "pyw": "https://sunnyremover.com/downloader/SunnyDownloader.pyw",
- "notes": "비메오 지원 개선 · 인스타·링크드인 등 로그인 필요한 영상 지원"
+ "notes": "링크 칸 맨 앞·Ctrl+V 붙여넣기 개선 · 비메오·로그인 필요한 영상 지원"
 }
