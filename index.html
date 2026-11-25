@@ -71,6 +71,7 @@ button{font-family:inherit;}
   box-shadow:var(--sh-1);
 }
 .tab-btn:hover{background:var(--surface-2);color:var(--t-0);border-color:var(--line-3,var(--line-2));}
+a.tab-btn{text-decoration:none;}
 .tab-btn.active{background:var(--acc-soft);border-color:var(--acc-line);color:var(--acc);box-shadow:none;}
 
 /* 탭 패널 — 각 패널이 자체 .main + .footer 보유 */
@@ -476,6 +477,7 @@ input[type=file]{display:none;}
       <button class="tab-btn active" id="tabBtnWm" onclick="switchTab('wm')">🩹 <span data-i18n-shared="tabWm">워터마크 제거</span></button>
       <button class="tab-btn" id="tabBtnBg" onclick="switchTab('bg')">✂ <span data-i18n-shared="tabBg">배경 제거</span></button>
       <button class="tab-btn" id="tabBtnUp" onclick="switchTab('up')">🔍 <span data-i18n-shared="tabUp">업스케일</span></button>
+      <a class="tab-btn" id="tabBtnDl" href="./downloader/">⬇ <span data-i18n-shared="tabDl">다운로더</span></a>
     </nav>
   </header>
 
@@ -1850,13 +1852,13 @@ applyLang(LANG);
 //  - 언어 토글: 양쪽 패널 i18n + 공유 헤더(설치 버튼·탭 라벨) 갱신.
 // ══════════════════════════════════════════════════════════════════════
 const SHARED_I18N = {
-  ko:{ tabWm:'워터마크 제거', tabBg:'배경 빼기', tabUp:'업스케일', installBtn:'⬇ 앱 설치',
+  ko:{ tabWm:'워터마크 제거', tabBg:'배경 빼기', tabUp:'업스케일', tabDl:'다운로더', installBtn:'⬇ 앱 설치',
        resetLabel:'리셋', confirmCancel:'취소', confirmReset:'리셋',
        resetConfirmMsg:'처음 상태로 되돌립니다. 계속할까요?',
        updateMsg:'새 버전이 있어요. 업데이트하시겠어요?', updateNow:'업데이트', updateLater:'나중에',
        cropLabel:'자르기', cropGuide:'자를 영역을 드래그하세요', cropApply:'적용', cropCancel:'취소',
        cropDone:'선택한 영역으로 잘랐습니다', cropTiny:'영역이 너무 작습니다 — 다시 드래그하세요' },
-  en:{ tabWm:'Watermark', tabBg:'Background', tabUp:'Upscale', installBtn:'⬇ Install',
+  en:{ tabWm:'Watermark', tabBg:'Background', tabUp:'Upscale', tabDl:'Downloader', installBtn:'⬇ Install',
        resetLabel:'Reset', confirmCancel:'Cancel', confirmReset:'Reset',
        resetConfirmMsg:'Reset to the start? This clears your work.',
        updateMsg:'A new version is available. Update now?', updateNow:'Update', updateLater:'Later',
@@ -4131,5 +4133,12 @@ window.upRefitCanvas = ()=>{ if(state.img){ fitCanvas(); applyView(); } };
 
 </script>
 
+<script>
+// 다운로더 페이지에서 탭을 눌러 돌아올 때(#wm/#bg/#up) 해당 탭을 연다
+window.addEventListener('load', () => {
+  const t = location.hash.slice(1);
+  if (['wm','bg','up'].includes(t) && typeof switchTab === 'function') switchTab(t);
+});
+</script>
 </body>
 </html>
