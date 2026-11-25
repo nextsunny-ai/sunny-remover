@@ -23,7 +23,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 HOST = socket.gethostname()
 SETTINGS = os.path.join(HERE, f"설정_{HOST}.json")  # PC별 설정(드라이브 공유 충돌 방지)
 LIST_FILE = os.path.join(HERE, f"목록_{HOST}.json")  # PC별 링크 목록(껐다 켜도 유지)
-VERSION = 9  # 사이트의 version.json보다 낮으면 새 버전 공지
+VERSION = 10  # 사이트의 version.json보다 낮으면 새 버전 공지
 UPDATE_URL = "https://sunnyremover.com/downloader/version.json"
 APP_FILE = os.path.abspath(__file__)
 HISTORY_NAME = "다운로드기록.csv"  # 저장 폴더 안에 쌓이는 출처 기록
@@ -91,6 +91,8 @@ def extract_urls(text):
 def friendly_error(exc):
     msg = str(exc)
     low = msg.lower()
+    if isinstance(exc, LoginNeeded):
+        return "로그인이 필요한 영상입니다 — 뜨는 안내 창대로 한 번만 설정하면 받아집니다"
     if "drm" in low:
         return "복제 방지(DRM)가 걸린 영상이라 받을 수 없습니다 — 화면 녹화로 대신하세요"
     if "cookie" in low and any(k in low for k in ("decrypt", "could not", "copy", "database", "permission")):
@@ -129,29 +131,85 @@ def clean_title(title):
 
 
 COOKIE_FILE = "file"
+AUTO = "auto"
+STORE_URL = "https://chromewebstore.google.com/detail/get-cookiestxt-locally/cclelndahbckbenkjhflpdbgdldlbecc"
 if sys.platform == "win32":
     # 윈도우 크롬·엣지·웨일(127+)은 '앱 전용 암호화'로 다른 프로그램이 로그인 정보를 못 읽는다 → 쿠키 파일
-    LOGIN_CHOICES = {"안 씀": None, "쿠키 파일": COOKIE_FILE, "파이어폭스": "firefox"}
+    LOGIN_CHOICES = {"자동": AUTO, "쿠키 파일 직접 선택": COOKIE_FILE, "파이어폭스": "firefox", "끔": None}
+    LOCAL_DIR = os.path.join(os.environ.get("LOCALAPPDATA", os.path.expanduser("~")), "SunnyDownloader")
 else:
-    LOGIN_CHOICES = {"안 씀": None, "크롬": "chrome", "사파리": "safari", "엣지": "edge", "웨일": "whale",
-                     "파이어폭스": "firefox", "쿠키 파일": COOKIE_FILE}
-LOGIN = {"browser": None, "cookiefile": ""}  # 로그인 필요한 영상용: 브라우저 또는 쿠키 파일의 로그인 정보
+    LOGIN_CHOICES = {"자동": AUTO, "크롬": "chrome", "사파리": "safari", "엣지": "edge", "웨일": "whale",
+                     "파이어폭스": "firefox", "쿠키 파일 직접 선택": COOKIE_FILE, "끔": None}
+    LOCAL_DIR = os.path.join(os.path.expanduser("~"), "Library", "Application Support", "SunnyDownloader")
+LOGIN = {"browser": AUTO, "cookiefile": ""}  # 로그인 필요한 영상용: 브라우저 또는 쿠키 파일의 로그인 정보
+DOWNLOADS_DIR = os.path.join(os.path.expanduser("~"), "Downloads")
+
+
+class LoginNeeded(Exception):
+    """로그인 정보가 없어서 못 받은 영상(안내 창을 띄운다)."""
+
+
+def is_login_error(exc):
+    low = str(exc).lower()
+    return "drm" not in low and any(k in low for k in ("sign in", "logged-in", "login", "log in",
+                                                         "401", "unauthorized", "cookies"))
+
+
+def downloads_cookie_files():
+    """다운로드 폴더의 cookies.txt 파일들(확장 'Get cookies.txt LOCALLY'가 저장한 것), 오래된 것부터."""
+    try:
+        names = [n for n in os.listdir(DOWNLOADS_DIR) if "cookie" in n.lower() and n.lower().endswith(".txt")]
+    except OSError:
+        return []
+    paths = [os.path.join(DOWNLOADS_DIR, n) for n in names]
+    return sorted(paths, key=os.path.getmtime)
+
+
+def merged_cookie_file():
+    """여러 사이트 쿠키 파일을 하나로 합쳐 이 PC 전용 폴더에 둔다(공유 드라이브에는 두지 않는다)."""
+    files = downloads_cookie_files()
+    if not files:
+        return None
+    lines = ["# Netscape HTTP Cookie File"]
+    for f in files:  # 나중 파일이 앞의 같은 쿠키를 덮어쓴다
+        with open(f, encoding="utf-8", errors="ignore") as fp:
+            lines += [ln.rstrip("\n") for ln in fp if ln.strip() and not ln.startswith("# ")]
+    os.makedirs(LOCAL_DIR, exist_ok=True)
+    out = os.path.join(LOCAL_DIR, "cookies_auto.txt")
+    with open(out, "w", encoding="utf-8") as fp:
+        fp.write("\n".join(lines) + "\n")
+    return out
+
+
+def auto_login_sources():
+    """자동 모드에서 차례로 시도할 로그인 정보: (맥) 크롬·사파리 → 다운로드 폴더의 쿠키 파일."""
+    srcs = []
+    if sys.platform == "darwin":
+        srcs += [{"cookiesfrombrowser": ("chrome",)}, {"cookiesfrombrowser": ("safari",)}]
+    merged = merged_cookie_file()
+    if merged:
+        srcs.append({"cookiefile": merged})
+    return srcs
 VIMEO_RE = re.compile(r"https?://(?:www\.)?vimeo\.com/(?:channels/[^/]+/|groups/[^/]+/videos/|"
                       r"showcase/\d+/video/)?(\d+)(?:/([0-9a-f]{6,}))?")
 
 
-def normalize_url(url):
+def normalize_url(url, cookies=None):
     """비메오 일반 주소는 로그인을 요구해서, 로그인 없이 되는 플레이어 주소로 바꾼다."""
     m = VIMEO_RE.match(url)
-    if m and not LOGIN["browser"]:
+    if m and not cookies and LOGIN["browser"] in (None, AUTO):
         vid, h = m.group(1), m.group(2)
         return f"https://player.vimeo.com/video/{vid}" + (f"?h={h}" if h else "")
     return url
 
 
-def base_opts():
+def base_opts(cookies=None):
     opts = {"quiet": True, "no_warnings": True, "noplaylist": True}
-    if LOGIN["browser"] == COOKIE_FILE:
+    if cookies:
+        opts.update(cookies)
+    elif LOGIN["browser"] in (None, AUTO):
+        pass
+    elif LOGIN["browser"] == COOKIE_FILE:
         if LOGIN["cookiefile"] and os.path.isfile(LOGIN["cookiefile"]):
             opts["cookiefile"] = LOGIN["cookiefile"]
     elif LOGIN["browser"]:
@@ -159,27 +217,51 @@ def base_opts():
     return opts
 
 
-def fetch_title(url):
-    """다운로드 없이 제목만 확인."""
-    opts = {**base_opts(), "skip_download": True}
-    with yt_dlp.YoutubeDL(opts) as ydl:
-        info = ydl.extract_info(normalize_url(url), download=False, process=False)
-    return clean_title((info or {}).get("title"))
+def fetch_title(url, cookies=None):
+    """다운로드 없이 제목만 확인. 자동 모드에서 로그인이 필요하면 다운로드 폴더 쿠키 파일로 한 번 더."""
+    try:
+        opts = {**base_opts(cookies), "skip_download": True}
+        with yt_dlp.YoutubeDL(opts) as ydl:
+            info = ydl.extract_info(normalize_url(url, cookies), download=False, process=False)
+        return clean_title((info or {}).get("title"))
+    except Exception as exc:  # noqa: BLE001
+        merged = None if cookies or LOGIN["browser"] != AUTO or not is_login_error(exc) else merged_cookie_file()
+        if not merged:
+            raise
+        return fetch_title(url, {"cookiefile": merged})
 
 
-def download_one(url, folder, quality, on_progress=None, simulate=False):
+def download_auto(url, folder, quality, on_progress=None, simulate=False):
+    """받기 → 로그인이 필요하면(자동 모드) 가진 로그인 정보로 차례로 다시 시도."""
+    try:
+        return download_one(url, folder, quality, on_progress, simulate)
+    except Exception as exc:  # noqa: BLE001
+        if LOGIN["browser"] != AUTO or not is_login_error(exc):
+            raise
+        last = exc
+        for cookies in auto_login_sources():
+            try:
+                return download_one(url, folder, quality, on_progress, simulate, cookies=cookies)
+            except Exception as again:  # noqa: BLE001 - 이 로그인 정보로 안 되면 다음 것으로
+                last = again
+        if "drm" in str(last).lower():
+            raise last
+        raise LoginNeeded(str(last)) from last
+
+
+def download_one(url, folder, quality, on_progress=None, simulate=False, cookies=None):
     """링크 1개 처리. 성공 시 (파일명, 제목) 반환, 실패 시 예외."""
     opts = dict(QUALITIES[quality])
     title_fix = {"key": "MetadataParser", "when": "pre_process",
                  "actions": [(MetadataParserPP.Actions.REPLACE, "title", TITLE_PREFIX, "")]}
     opts["postprocessors"] = [title_fix] + list(opts.get("postprocessors", []))
-    opts.update(base_opts())
+    opts.update(base_opts(cookies))
     opts.update({
         "outtmpl": os.path.join(folder, OUTTMPL),
         "noprogress": True,
         "windowsfilenames": True,
     })
-    url = normalize_url(url)
+    url = normalize_url(url, cookies)
     ffmpeg = find_ffmpeg()
     if ffmpeg:
         opts["ffmpeg_location"] = ffmpeg
@@ -374,6 +456,26 @@ class App:
         ttk.Button(row, text="복사한 링크 바로 추가",
                    command=self.paste_clipboard).pack(side="left", padx=(6, 0))
         self.bind_paste_keys(self.entry, into_entry=True)
+        self.bind_entry_menu(self.entry)
+
+    def bind_entry_menu(self, entry):
+        """입력칸 오른쪽 클릭 메뉴: 붙여넣기·복사·잘라내기·전체 선택·지우기."""
+        menu = tk.Menu(self.root, tearoff=0)
+        menu.add_command(label="붙여넣기", command=self.paste_into_entry)
+        menu.add_command(label="복사", command=lambda: entry.event_generate("<<Copy>>"))
+        menu.add_command(label="잘라내기", command=lambda: entry.event_generate("<<Cut>>"))
+        menu.add_separator()
+        menu.add_command(label="전체 선택", command=lambda: entry.select_range(0, "end"))
+        menu.add_command(label="지우기", command=lambda: entry.delete(0, "end"))
+
+        def popup(event):
+            entry.focus_set()
+            menu.tk_popup(event.x_root, event.y_root)
+            return "break"
+
+        for seq in ("<Button-3>", "<Button-2>" if sys.platform == "darwin" else "<Button-3>",
+                    "<Control-Button-1>" if sys.platform == "darwin" else "<Button-3>"):
+            entry.bind(seq, popup)
 
     def build_list(self, f):
         box = ttk.Frame(f)
@@ -429,9 +531,9 @@ class App:
             self.quality.set(DEFAULT_QUALITY)
         ttk.Combobox(row, textvariable=self.quality, values=list(QUALITIES), state="readonly",
                      width=40).pack(side="left", padx=8)
-        self.login = tk.StringVar(value=cfg.get("login", "안 씀"))
+        self.login = tk.StringVar(value=cfg.get("login", "자동"))
         if self.login.get() not in LOGIN_CHOICES:
-            self.login.set("안 씀")
+            self.login.set("자동")
         LOGIN["browser"] = LOGIN_CHOICES[self.login.get()]
         LOGIN["cookiefile"] = cfg.get("cookiefile", "")
         box = ttk.Combobox(row, textvariable=self.login, values=list(LOGIN_CHOICES), state="readonly", width=9)
@@ -667,11 +769,14 @@ class App:
             path = filedialog.askopenfilename(title="cookies.txt 고르기",
                                               filetypes=[("쿠키 파일", "*.txt"), ("모든 파일", "*.*")])
             if not path:
-                self.login.set("안 씀")
-                choice = None
+                self.login.set("자동")
+                choice = AUTO
             else:
                 LOGIN["cookiefile"] = os.path.normpath(path)
                 self.write(f"[알림] 로그인 필요한 영상은 쿠키 파일로 받습니다: {os.path.basename(path)}")
+        elif choice == AUTO:
+            self.write("[알림] 로그인이 필요한 영상은 자동으로 처리합니다(다운로드 폴더의 쿠키 파일"
+                       + (", 크롬·사파리" if sys.platform == "darwin" else "") + ").")
         elif choice:
             self.write(f"[알림] 로그인 필요한 영상은 {self.login.get()}의 로그인 정보로 받습니다. "
                        "그 브라우저에서 해당 사이트에 로그인돼 있어야 합니다.")
@@ -741,6 +846,8 @@ class App:
                 elif kind == "restart":
                     self.restart()
                     return
+                elif kind == "loginhelp":
+                    self.show_login_help(val)
                 elif kind == "done":
                     self.set_busy(False)
                     self.status.configure(text="대기 중")
@@ -769,6 +876,7 @@ class App:
 
     def worker(self, targets, folder, quality, simulate=False):
         ok = 0
+        need_login = []
         for n, (iid, url) in enumerate(targets, 1):
             last = {"pct": -1}
 
@@ -789,7 +897,7 @@ class App:
             self.q.put(("item", (iid, {"status": RUN}), True))
             self.q.put(("bar", (0, f"[{n}/{len(targets)}] 준비 중...")))
             try:
-                name, title = download_one(url, folder, quality, hook, simulate=simulate)
+                name, title = download_auto(url, folder, quality, hook, simulate=simulate)
                 today = datetime.date.today().isoformat()
                 changes = {"status": DONE, "file": name, "date": today}
                 if title:
@@ -802,8 +910,55 @@ class App:
             except Exception as exc:  # noqa: BLE001 - 링크별로 사용자에게 보여주고 계속
                 self.q.put(("item", (iid, {"status": FAIL}), True))
                 self.q.put(("log", f"실패: {url}\n   → {friendly_error(exc)}"))
+                if isinstance(exc, LoginNeeded) or (LOGIN["browser"] != AUTO and is_login_error(exc)):
+                    need_login.append(url)
         self.q.put(("log", f"== 끝: {ok}/{len(targets)}개 성공 =="))
         self.q.put(("done", None))
+        if need_login:
+            self.q.put(("loginhelp", need_login))
+
+    # ---- 로그인 안내 창 ----
+    def show_login_help(self, urls):
+        hosts = sorted({re.sub(r"^https?://(www\.)?", "", u).split("/")[0] for u in urls})
+        win = tk.Toplevel(self.root)
+        win.title("로그인이 필요한 영상")
+        win.transient(self.root)
+        win.resizable(False, False)
+        body = ttk.Frame(win, padding=18)
+        body.pack(fill="both", expand=True)
+        ttk.Label(body, text=f"로그인해야 받을 수 있는 영상이 {len(urls)}개 있습니다 ({', '.join(hosts)})",
+                  font=(FONT[0], 11, "bold")).pack(anchor="w")
+        mac_tip = ("맥은 크롬·사파리에 그 사이트로 로그인돼 있으면 자동으로 시도합니다. "
+                   "'키체인 접근 허용' 창이 뜨면 '허용'을 누르세요. 그래도 안 되면 아래 순서대로 하세요.\n\n"
+                   if sys.platform == "darwin" else "")
+        steps = (mac_tip +
+                 "처음 한 번만 하면 됩니다.\n\n"
+                 "1. 아래 [확장 설치 페이지 열기] → 크롬에서 'Chrome에 추가'\n"
+                 "2. 크롬에서 그 사이트(" + ", ".join(hosts) + ")에 로그인한 상태로\n"
+                 "    주소창 오른쪽 퍼즐 모양 → 'Get cookies.txt LOCALLY' → 'Export'\n"
+                 "    (다운로드 폴더에 ..._cookies.txt 파일이 저장됩니다)\n"
+                 "3. 아래 [다시 받기]를 누르면 그 파일을 자동으로 찾아 받습니다.\n\n"
+                 "※ 쿠키 파일은 로그인 상태를 빌려주는 '출입증'입니다. 다른 사람에게 보내지 마세요.\n"
+                 "※ 몇 주 뒤 다시 안 받아지면 2번(Export)만 한 번 더 하면 됩니다.")
+        ttk.Label(body, text=steps, justify="left", wraplength=560).pack(anchor="w", pady=(10, 14))
+        row = ttk.Frame(body)
+        row.pack(fill="x")
+        ttk.Button(row, text="확장 설치 페이지 열기", command=lambda: webbrowser.open(STORE_URL)).pack(side="left")
+
+        def retry():
+            win.destroy()
+            if self.login.get() != "자동":
+                self.login.set("자동")
+                self.on_login_change()
+            for iid, it in self.items.items():
+                if it["status"] == FAIL and it["url"] in urls:
+                    self.set_item(iid, {"status": WAIT})
+            self.after_list_change()
+            self.start()
+
+        ttk.Button(row, text="다시 받기", style="Big.TButton", command=retry).pack(side="left", padx=8)
+        ttk.Button(row, text="닫기", command=win.destroy).pack(side="right")
+        win.grab_set()
 
     # ---- 엔진 업데이트 ----
     def update(self):

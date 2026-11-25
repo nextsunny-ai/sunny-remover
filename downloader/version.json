@@ -1,6 +1,6 @@
 {
- "version": 9,
+ "version": 10,
  "date": "2026-11-25",
  "pyw": "https://sunnyremover.com/downloader/SunnyDownloader.pyw",
- "notes": "로그인 필요한 영상: 윈도우는 쿠키 파일(cookies.txt) 방식 추가"
+ "notes": "로그인 필요한 영상 자동 처리 · 안내 창 · 링크 칸 오른쪽 클릭 메뉴"
 }

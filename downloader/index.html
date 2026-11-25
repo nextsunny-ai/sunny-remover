@@ -47,6 +47,10 @@ main{max-width:860px;margin:0 auto;padding:72px 24px;}
 .guide{color:var(--t-1);font-size:14px;text-decoration:none;text-align:center;padding:6px;border-radius:8px;}
 .guide:hover{color:var(--acc);background:var(--acc-soft);}
 .preview{margin:34px 0 0;}
+.preview-cap{display:flex;align-items:center;gap:10px;margin-bottom:10px;font-size:13.5px;color:var(--t-1);}
+.pv-badge{background:var(--t-0);color:#fff;font-size:12px;font-weight:700;padding:4px 10px;border-radius:999px;letter-spacing:.02em;}
+.preview{position:relative;}
+.preview img{pointer-events:none;user-select:none;opacity:.96;}
 .preview img{display:block;width:100%;height:auto;border-radius:14px;border:1px solid var(--line);box-shadow:var(--sh-2);background:#fff;}
 .ver{margin-top:26px;color:var(--t-2);font-size:13px;text-align:center;}
 @media (max-width:760px){
@@ -74,7 +78,7 @@ main{max-width:860px;margin:0 auto;padding:72px 24px;}
     <img src="icon.png" alt="" width="64" height="64">
     <div>
       <h1>Sunny Downloader</h1>
-      <p><span id="ver">v9</span> · 유튜브 · 비메오 · 인스타그램 · 틱톡 · X · 페이스북 등</p>
+      <p><span id="ver">v10</span> · 유튜브 · 비메오 · 인스타그램 · 틱톡 · X · 페이스북 등</p>
     </div>
   </div>
 
@@ -92,6 +96,7 @@ main{max-width:860px;margin:0 auto;padding:72px 24px;}
   </div>
 
   <figure class="preview">
+    <figcaption class="preview-cap"><span class="pv-badge">미리보기</span>프로그램 화면 사진입니다 · 사용하려면 위에서 다운로드해 설치하세요</figcaption>
     <img src="preview.png" alt="Sunny Downloader 실행 화면 — 링크 목록, 화질 선택, 진행률" width="820" height="640" loading="lazy">
   </figure>
 </main>
